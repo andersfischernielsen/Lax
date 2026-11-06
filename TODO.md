@@ -11,7 +11,7 @@
 | @role or @subteam mentions      | Planned  | Planned  |
 | Video calls and screen sharing  | Unlikely | Unlikely |
 
-- [ ] Animated emoji
+- [ ] Animated emoji: custom emoji show, but GIFs only show their first frame
 - [ ] Animated images and videos
 - [x] Unread message marker line
 - [ ] "User is typing" indicators (Slack): showing others is done; sending our own isn't
@@ -22,13 +22,16 @@
 
 - [ ] Passkey 2FA at sign-in. macOS doesn't allow passkeys in an embedded web view
       for apps that aren't browsers, so this needs sign-in through the system browser.
-- [ ] Threads (reply counts show, but threads can't be opened)
-- [ ] Reactions
-- [ ] Images and file attachments
+- [x] Threads
+- [ ] Reactions: shown and toggled; no picker for adding a new one
+- [x] Images and file attachments
+- [x] Bot messages: Block Kit blocks and legacy attachments
 - [ ] Edit and delete own messages
-- [ ] Unread badges in the sidebar
+- [x] Unread badges in the sidebar
+- [x] Muted channels
 - [ ] Notifications
-- [ ] Custom emoji and `:shortcodes:`
+- [x] Custom emoji and `:shortcodes:`
+- [ ] Group DM names (handles show instead of real names)
 - [ ] Search
 - [ ] Pinned messages
 - [ ] Slash commands and bot buttons

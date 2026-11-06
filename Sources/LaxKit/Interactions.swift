@@ -56,8 +56,6 @@ extension SlackAPIClient {
     }
 }
 
-private struct Empty: Decodable {}
-
 /// The shapes Slack's clients send to `blocks.actions`.
 private struct ButtonAction: Encodable {
     struct Text: Encodable {

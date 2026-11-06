@@ -181,7 +181,8 @@ private struct HistoryResponse: Decodable {
     }
 }
 
-private struct Empty: Decodable {}
+/// A response with nothing to read beyond Slack's `ok`.
+struct Empty: Decodable {}
 
 private struct SearchResponse: Decodable {
     struct Matches: Decodable {

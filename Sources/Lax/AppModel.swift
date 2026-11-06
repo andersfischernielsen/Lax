@@ -52,13 +52,29 @@ final class AppModel {
         id.flatMap { workspaces[$0] } ?? accounts.first.flatMap { workspaces[$0.id] }
     }
 
-    func load() {
+    /// Saved workspaces have been read (or there was nothing to read).
+    private(set) var hasLoaded = false
+    @ObservationIgnored private var started = false
+
+    /// Reads saved workspaces and keeps the Dock badge current; once, when the first window shows.
+    func start() async {
+        guard !started else { return }
+        started = true
+        await load()
+        startShowingAttentionInDock()
+    }
+
+    /// Reads saved workspaces off the main thread: the Keychain may ask the user for
+    /// permission first, and the app must stay responsive meanwhile.
+    func load() async {
+        defer { hasLoaded = true }
         guard !UITestingSlack.isEnabled else {
             accounts = [UITestingSlack.account]
             return syncWorkspaces()
         }
+        let store = store
         do {
-            accounts = try store.loadAll()
+            accounts = try await Task.detached { try store.loadAll() }.value
             Log.workspace.info("loaded \(self.accounts.count) account(s) from the Keychain")
         } catch {
             Log.workspace.error("Keychain read failed: \(Log.describe(error), privacy: .public)")
@@ -81,7 +97,7 @@ final class AppModel {
         } catch {
             problem = Problem("Couldn't Remove \(account.teamName)", error)
         }
-        load()
+        Task { await load() }
     }
 
     private func save(_ newAccounts: [SlackAccount]) {
@@ -95,7 +111,7 @@ final class AppModel {
             Log.workspace.error("Keychain save failed: \(Log.describe(error), privacy: .public)")
             problem = Problem("Couldn't Save the Workspace", error)
         }
-        load()
+        Task { await load() }
     }
 
     /// One running workspace per saved account.

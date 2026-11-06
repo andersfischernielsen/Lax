@@ -39,6 +39,8 @@ struct ContentView: View {
                                            description: Text("Pick a channel or direct message."))
                         .navigationTitle(window.area.title)
                 }
+            } else if !model.hasLoaded {
+                ProgressView()
             } else {
                 ContentUnavailableView {
                     Label("No Slack Workspace", systemImage: "bubble.left.and.bubble.right")

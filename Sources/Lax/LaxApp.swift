@@ -13,18 +13,18 @@ struct LaxApp: App {
             NSApplication.shared.setActivationPolicy(.regular)
             NSApplication.shared.activate()
         }
-        let model = AppModel()
-        model.load()
-        _model = State(initialValue: model)
+        _model = State(initialValue: AppModel())
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView(model: model)
-                // Not before: setting the Dock badge before SwiftUI opens its first window
-                // (even in applicationDidFinishLaunching) stops that window from opening.
-                .task { model.startShowingAttentionInDock() }
+                // Only once a window shows: nothing may delay the first window, and setting
+                // the Dock badge before it exists stops SwiftUI from opening it.
+                .task { await model.start() }
         }
+        // A window on every launch, even when the last session ended with none open.
+        .defaultLaunchBehavior(.presented)
         .commands {
             WorkspaceCommands(model: model)
             GoCommands(model: model)

@@ -16,7 +16,7 @@
 			containerPortal = A10000000000000000000040 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = A10000000000000000000050;
-			remoteInfo = Lax;
+			remoteInfo = LaxApp;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -70,9 +70,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		A10000000000000000000050 /* Lax */ = {
+		A10000000000000000000050 /* LaxApp */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A100000000000000000000B0 /* Build configuration list for PBXNativeTarget "Lax" */;
+			buildConfigurationList = A100000000000000000000B0 /* Build configuration list for PBXNativeTarget "LaxApp" */;
 			buildPhases = (
 				A100000000000000000000A0 /* Sources */,
 				A10000000000000000000080 /* Frameworks */,
@@ -85,11 +85,11 @@
 			fileSystemSynchronizedGroups = (
 				A10000000000000000000070 /* Sources/Lax */,
 			);
-			name = Lax;
+			name = LaxApp;
 			packageProductDependencies = (
 				A10000000000000000000020 /* LaxKit */,
 			);
-			productName = Lax;
+			productName = LaxApp;
 			productReference = A10000000000000000000060 /* Lax.app */;
 			productType = "com.apple.product-type.application";
 		};
@@ -267,7 +267,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = app.lax.LaxUITests;
 				PRODUCT_NAME = LaxUITests;
-				TEST_TARGET_NAME = Lax;
+				TEST_TARGET_NAME = LaxApp;
 			};
 			name = Debug;
 		};
@@ -279,7 +279,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = app.lax.LaxUITests;
 				PRODUCT_NAME = LaxUITests;
-				TEST_TARGET_NAME = Lax;
+				TEST_TARGET_NAME = LaxApp;
 			};
 			name = Release;
 		};

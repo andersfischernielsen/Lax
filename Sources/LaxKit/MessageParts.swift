@@ -49,6 +49,8 @@ public struct SlackFile: Decodable, Hashable, Identifiable, Sendable {
         public let url: URL
         public let width: Int
         public let height: Int
+        /// A GIF that should play, not a still thumbnail.
+        public var isAnimated = false
 
         /// Display size within a box, keeping the aspect ratio and never enlarging.
         public func fitted(maxWidth: Double, maxHeight: Double) -> (width: Double, height: Double) {
@@ -67,6 +69,14 @@ public struct SlackFile: Decodable, Hashable, Identifiable, Sendable {
     public let permalink: URL?
     /// Present for images that have a usable thumbnail.
     public let preview: Preview?
+    /// Present for videos: what to play, and a still to show until it does.
+    public let video: Video?
+
+    public struct Video: Hashable, Sendable {
+        /// Needs the session cookie, like any Slack-hosted file.
+        public let url: URL
+        public let poster: Preview?
+    }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -77,8 +87,31 @@ public struct SlackFile: Decodable, Hashable, Identifiable, Sendable {
         prettyType = try c.decodeIfPresent(String.self, forKey: .prettyType)
         url = try c.decodeIfPresent(String.self, forKey: .urlPrivate).flatMap(URL.init(string:))
         permalink = try c.decodeIfPresent(String.self, forKey: .permalink).flatMap(URL.init(string:))
-        let isImage = try c.decodeIfPresent(String.self, forKey: .mimetype)?.hasPrefix("image/") ?? false
-        preview = isImage ? try Self.preview(in: c) : nil
+        let mimetype = try c.decodeIfPresent(String.self, forKey: .mimetype) ?? ""
+        preview = mimetype == "image/gif" ? try Self.animatedPreview(in: c) ?? Self.preview(in: c)
+            : mimetype.hasPrefix("image/") ? try Self.preview(in: c) : nil
+        video = mimetype.hasPrefix("video/") ? try Self.video(in: c) : nil
+    }
+
+    /// The animated thumbnail, else the GIF itself, at its original size.
+    private static func animatedPreview(in c: KeyedDecodingContainer<Keys>) throws -> Preview? {
+        let urls = try [Keys.thumb480Gif, .thumb360Gif, .urlPrivate].lazy
+            .compactMap { try c.decodeIfPresent(String.self, forKey: $0).flatMap(URL.init(string:)) }
+        guard let url = urls.first,
+              let width = try c.decodeIfPresent(Int.self, forKey: .originalW),
+              let height = try c.decodeIfPresent(Int.self, forKey: .originalH) else { return nil }
+        return Preview(url: url, width: width, height: height, isAnimated: true)
+    }
+
+    private static func video(in c: KeyedDecodingContainer<Keys>) throws -> Video? {
+        guard let url = try (c.decodeIfPresent(String.self, forKey: .mp4) ?? c.decodeIfPresent(String.self, forKey: .urlPrivate))
+            .flatMap(URL.init(string:)) else { return nil }
+        let poster: Preview? = if let thumb = try c.decodeIfPresent(String.self, forKey: .thumbVideo).flatMap(URL.init(string:)),
+                                  let width = try c.decodeIfPresent(Int.self, forKey: .thumbVideoW),
+                                  let height = try c.decodeIfPresent(Int.self, forKey: .thumbVideoH) {
+            Preview(url: thumb, width: width, height: height)
+        } else { nil }
+        return Video(url: url, poster: poster)
     }
 
     /// The 720px thumbnail, else the 360px one.
@@ -100,6 +133,10 @@ public struct SlackFile: Decodable, Hashable, Identifiable, Sendable {
         case urlPrivate = "url_private"
         case thumb720 = "thumb_720", thumb720W = "thumb_720_w", thumb720H = "thumb_720_h"
         case thumb360 = "thumb_360", thumb360W = "thumb_360_w", thumb360H = "thumb_360_h"
+        case thumb480Gif = "thumb_480_gif", thumb360Gif = "thumb_360_gif"
+        case originalW = "original_w", originalH = "original_h"
+        case mp4
+        case thumbVideo = "thumb_video", thumbVideoW = "thumb_video_w", thumbVideoH = "thumb_video_h"
     }
 }
 

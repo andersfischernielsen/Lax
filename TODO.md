@@ -45,7 +45,7 @@
 
 ## Apple quality
 
-- [ ] Performance pass: rows redraw only when their own data changes (split the
+- [x] Performance pass: rows redraw only when their own data changes (split the
       workspace model), messages are formatted once and cached, avatars and emoji
       images are cached, and images reserve their space so rows don't change height
 - [ ] Apple guideline pass: selectable message text that keeps the message menu,

@@ -193,4 +193,41 @@ struct EndpointTests {
         StubURLProtocol.reset(["rtm.connect": [#"{"ok":true,"url":"wss://wss-primary.slack.com/websocket/abc"}"#]])
         #expect(try await client.realTimeURL().absoluteString == "wss://wss-primary.slack.com/websocket/abc")
     }
+
+    @Test func followedThreadsListsRootsWithUnreadReplies() async throws {
+        StubURLProtocol.reset(["subscriptions.thread.getView": [
+            #"""
+            {"ok":true,"has_more":true,"threads":[
+              {"root_msg":{"type":"message","ts":"10.0","thread_ts":"10.0","user":"U1","text":"Root",
+                           "channel":"C1","latest_reply":"12.0","last_read":"11.0","reply_count":2},
+               "latest_replies":[{"type":"message","ts":"12.0","thread_ts":"10.0","user":"U2","text":"b"},
+                                 {"type":"message","ts":"11.0","thread_ts":"10.0","user":"U3","text":"a"}],
+               "unread_replies":[{"type":"message","ts":"12.0","thread_ts":"10.0","user":"U2","text":"b"}]},
+              {"broken":true}
+            ]}
+            """#,
+        ]])
+        let page = try await client.followedThreads(limit: 5, now: Date(timeIntervalSince1970: 100))
+        #expect(page.hasMore)
+        let thread = try #require(page.threads.first)
+        #expect(page.threads.count == 1)
+        #expect(thread.id == "C1/10.0")
+        #expect(thread.root.text == "Root")
+        #expect(thread.latestReplies.map(\.ts) == ["11.0", "12.0"])
+        #expect(thread.unreadReplies == 1)
+        #expect(thread.latestReplyTS == "12.0")
+        let fields = StubURLProtocol.requests[0].formFields
+        #expect(fields["current_ts"] == "100.000000")
+        #expect(fields["limit"] == "5")
+    }
+
+    @Test func markingAThreadReadSendsItsPosition() async throws {
+        StubURLProtocol.reset(["subscriptions.thread.mark": [#"{"ok":true}"#]])
+        try await client.markThreadRead(channel: "C1", threadTS: "10.0", ts: "12.0")
+        let fields = StubURLProtocol.requests[0].formFields
+        #expect(fields["channel"] == "C1")
+        #expect(fields["thread_ts"] == "10.0")
+        #expect(fields["ts"] == "12.0")
+        #expect(fields["read"] == "1")
+    }
 }

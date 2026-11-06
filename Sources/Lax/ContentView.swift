@@ -57,7 +57,7 @@ struct ContentView: View {
                     ThreadView(workspace: workspace, thread: thread).id(thread)
                 } else {
                     ContentUnavailableView("No Thread", systemImage: "bubble.left.and.text.bubble.right",
-                                           description: Text("Choose Reply in Thread on a message to see its replies here."))
+                                           description: Text("Select a message to see its thread here."))
                 }
             }
             .inspectorColumnWidth(min: 300, ideal: 380, max: 560)

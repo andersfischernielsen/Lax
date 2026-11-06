@@ -48,6 +48,16 @@ private func message(_ ts: String, _ text: String = "", thread: String? = nil, s
     #expect(timeline.messages.isEmpty)
 }
 
+@Test func firstUnreadSkipsOwnMessages() {
+    var timeline = Timeline()
+    for (ts, user) in [("1.0", "U2"), ("2.0", "U1"), ("3.0", "U2"), ("4.0", "U2")] {
+        timeline.upsert(SlackMessage(ts: ts, userID: user, text: ""))
+    }
+    #expect(timeline.firstUnreadTS(lastRead: "1.0", ownUserID: "U1") == "3.0")
+    #expect(timeline.firstUnreadTS(lastRead: "4.0", ownUserID: "U1") == nil)
+    #expect(timeline.newestTS == "4.0")
+}
+
 @Test func typingEntriesExpire() {
     var tracker = TypingTracker()
     let start = Date(timeIntervalSince1970: 0)

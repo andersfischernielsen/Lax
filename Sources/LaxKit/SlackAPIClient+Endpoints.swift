@@ -29,6 +29,17 @@ extension SlackAPIClient {
         return HistoryPage(messages: response.messages, hasMore: response.hasMore ?? false)
     }
 
+    /// `ts` of the last message the user has read here, if Slack tracks it for this conversation.
+    public func lastRead(channel: String) async throws -> String? {
+        let response: ConversationInfoResponse = try await call("conversations.info", ["channel": channel])
+        return response.channel.lastRead
+    }
+
+    /// Moves the read position to `ts`, which every Slack client follows.
+    public func markRead(channel: String, ts: String) async throws {
+        let _: Empty = try await call("conversations.mark", ["channel": channel, "ts": ts])
+    }
+
     public func user(id: String) async throws -> SlackUser {
         let response: UserResponse = try await call("users.info", ["user": id])
         return response.user
@@ -76,6 +87,20 @@ private struct HistoryResponse: Decodable {
         case messages
         case hasMore = "has_more"
     }
+}
+
+private struct Empty: Decodable {}
+
+private struct ConversationInfoResponse: Decodable {
+    struct Channel: Decodable {
+        let lastRead: String?
+
+        enum CodingKeys: String, CodingKey {
+            case lastRead = "last_read"
+        }
+    }
+
+    let channel: Channel
 }
 
 private struct UserResponse: Decodable {

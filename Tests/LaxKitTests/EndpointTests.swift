@@ -77,6 +77,18 @@ struct EndpointTests {
         #expect(fields["thread_ts"] == "1700000001.000100")
     }
 
+    @Test func readPositionRoundTrip() async throws {
+        StubURLProtocol.reset([
+            "conversations.info": [#"{"ok":true,"channel":{"id":"C1","last_read":"1700000001.000100"}}"#],
+            "conversations.mark": [#"{"ok":true}"#],
+        ])
+        #expect(try await client.lastRead(channel: "C1") == "1700000001.000100")
+        try await client.markRead(channel: "C1", ts: "1700000009.000900")
+        let mark = StubURLProtocol.requests[1]
+        #expect(mark.url?.lastPathComponent == "conversations.mark")
+        #expect(mark.formFields["ts"] == "1700000009.000900")
+    }
+
     @Test func realTimeURLComesFromRTMConnect() async throws {
         StubURLProtocol.reset(["rtm.connect": [#"{"ok":true,"url":"wss://wss-primary.slack.com/websocket/abc"}"#]])
         #expect(try await client.realTimeURL().absoluteString == "wss://wss-primary.slack.com/websocket/abc")

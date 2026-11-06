@@ -41,6 +41,13 @@ public struct Timeline: Equatable, Sendable {
     /// The `latest` to ask for when loading older messages.
     public var oldestTS: String? { messages.first?.ts }
 
+    public var newestTS: String? { messages.last?.ts }
+
+    /// Where the "New" line goes: the first message after `lastRead` not sent by `ownUserID`.
+    public func firstUnreadTS(lastRead: String, ownUserID: String) -> String? {
+        messages.first { Self.isOrdered(lastRead, before: $0.ts) && $0.userID != ownUserID }?.ts
+    }
+
     static func belongsInChannel(_ message: SlackMessage) -> Bool {
         guard let thread = message.threadTS, thread != message.ts else { return true }
         return message.subtype == "thread_broadcast"

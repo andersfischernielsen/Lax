@@ -66,10 +66,10 @@ struct ContentView: View {
         .sheet(item: $window.signIn) { controller in
             SignInView(controller: controller, cancel: { window.signIn = nil })
         }
-        .alert("Something went wrong", isPresented: errorBinding(workspace)) {
-            Button("OK") { clearErrors(workspace) }
-        } message: {
-            Text(model.errorMessage ?? workspace?.errorMessage ?? "")
+        .alert(problem(workspace)?.title ?? "", isPresented: hasProblem(workspace), presenting: problem(workspace)) { _ in
+            Button("OK") { clearProblems(workspace) }
+        } message: { problem in
+            Text(problem.reason)
         }
         .task {
             window.accountID = storedAccount
@@ -96,13 +96,16 @@ struct ContentView: View {
         Binding(get: { window.editingDisplayName ?? "" }, set: { window.editingDisplayName = $0 })
     }
 
-    private func errorBinding(_ workspace: WorkspaceModel?) -> Binding<Bool> {
-        Binding(get: { model.errorMessage != nil || workspace?.errorMessage != nil },
-                set: { if !$0 { clearErrors(workspace) } })
+    private func problem(_ workspace: WorkspaceModel?) -> Problem? {
+        model.problem ?? workspace?.problem
     }
 
-    private func clearErrors(_ workspace: WorkspaceModel?) {
-        model.errorMessage = nil
-        workspace?.errorMessage = nil
+    private func hasProblem(_ workspace: WorkspaceModel?) -> Binding<Bool> {
+        Binding(get: { problem(workspace) != nil }, set: { if !$0 { clearProblems(workspace) } })
+    }
+
+    private func clearProblems(_ workspace: WorkspaceModel?) {
+        model.problem = nil
+        workspace?.problem = nil
     }
 }

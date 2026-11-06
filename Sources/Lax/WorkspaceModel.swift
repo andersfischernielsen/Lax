@@ -31,7 +31,8 @@ final class WorkspaceModel: Identifiable {
     let pinned = KeyedStore<String, [SlackMessage]>()
     /// Channel names by ID, for mentions.
     private(set) var channelNames: [String: String] = [:]
-    var errorMessage: String?
+    /// The last thing that went wrong, shown as an alert.
+    var problem: Problem?
 
     @ObservationIgnored private let client: SlackAPIClient
     @ObservationIgnored private let connection: RealTimeConnection
@@ -174,7 +175,7 @@ final class WorkspaceModel: Identifiable {
                 requestNames(for: page.messages)
                 markReadIfVisible(channel)
             } catch {
-                errorMessage = "Couldn't load messages (\(error))."
+                problem = Problem("Couldn't Load Messages", error)
             }
         }
     }
@@ -187,7 +188,7 @@ final class WorkspaceModel: Identifiable {
             requestUsers(Set(conversations.compactMap(\.userID)))
             await loadGroupMembers()
         } catch {
-            errorMessage = "Couldn't load conversations (\(error))."
+            problem = Problem("Couldn't Load Conversations", error)
         }
     }
 
@@ -240,7 +241,7 @@ final class WorkspaceModel: Identifiable {
                 try await client.setMuted(isMuted, channel: channel)
             } catch {
                 muted = before
-                errorMessage = "Couldn't change notifications for the channel (\(error))."
+                problem = Problem("Couldn't Change Notifications", error)
             }
         }
     }
@@ -302,7 +303,7 @@ final class WorkspaceModel: Identifiable {
                 update(channel) { _ = $0.upsert(message) }
             } catch {
                 drafts[key] = text
-                errorMessage = "Couldn't send the message (\(error))."
+                problem = Problem("Couldn't Send the Message", error)
             }
         }
     }
@@ -321,7 +322,7 @@ final class WorkspaceModel: Identifiable {
                 pinned[channel] = messages
                 requestNames(for: messages)
             } catch {
-                errorMessage = "Couldn't load pinned messages (\(error))."
+                problem = Problem("Couldn't Load Pinned Messages", error)
             }
         }
     }
@@ -338,7 +339,7 @@ final class WorkspaceModel: Identifiable {
                 try await client.setDisplayName(name)
                 if let user = try? await client.user(id: account.userID) { users[user.id] = user }
             } catch {
-                errorMessage = "Couldn't change your display name (\(error))."
+                problem = Problem("Couldn't Change Your Display Name", error)
             }
         }
     }
@@ -352,7 +353,7 @@ final class WorkspaceModel: Identifiable {
             requestNames(for: results.map(\.message))
             return results
         } catch {
-            errorMessage = "Search failed (\(error))."
+            problem = Problem("Couldn't Search", error)
             return nil
         }
     }
@@ -367,7 +368,7 @@ final class WorkspaceModel: Identifiable {
                 // The real-time connection delivers the updated message.
                 try await client.editMessage(edit.ts, in: edit.channel, text: SlackText.encodedForSending(text))
             } catch {
-                errorMessage = "Couldn't edit the message (\(error))."
+                problem = Problem("Couldn't Edit the Message", error)
             }
         }
     }
@@ -378,7 +379,7 @@ final class WorkspaceModel: Identifiable {
                 try await client.deleteMessage(message.ts, in: channel)
                 update(channel) { $0.remove(ts: message.ts) }
             } catch {
-                errorMessage = "Couldn't delete the message (\(error))."
+                problem = Problem("Couldn't Delete the Message", error)
             }
         }
     }
@@ -395,7 +396,7 @@ final class WorkspaceModel: Identifiable {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(link.absoluteString, forType: .string)
             } catch {
-                errorMessage = "Couldn't get a link to the message (\(error))."
+                problem = Problem("Couldn't Copy the Link", error)
             }
         }
     }
@@ -410,7 +411,7 @@ final class WorkspaceModel: Identifiable {
             requestNames(for: messages)
         } catch is CancellationError {
         } catch {
-            errorMessage = "Couldn't load the thread (\(error))."
+            problem = Problem("Couldn't Load the Thread", error)
         }
     }
 
@@ -445,7 +446,7 @@ final class WorkspaceModel: Identifiable {
                 try await client.react(name, to: message.ts, in: channel, added: adding)
             } catch {
                 update(channel) { $0.react(name, by: me, added: !adding, to: message.ts) }
-                errorMessage = "Couldn't update the reaction (\(error))."
+                problem = Problem("Couldn't Update the Reaction", error)
             }
         }
     }

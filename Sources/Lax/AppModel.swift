@@ -5,7 +5,8 @@ import Observation
 final class AppModel {
     private(set) var accounts: [SlackAccount] = []
     private(set) var workspaces: [SlackAccount.ID: WorkspaceModel] = [:]
-    var errorMessage: String?
+    /// The last thing that went wrong, shown as an alert.
+    var problem: Problem?
 
     @ObservationIgnored private let store = CredentialStore()
 
@@ -25,7 +26,7 @@ final class AppModel {
             Log.workspace.info("loaded \(self.accounts.count) account(s) from the Keychain")
         } catch {
             Log.workspace.error("Keychain read failed: \(Log.describe(error), privacy: .public)")
-            errorMessage = "Couldn't read saved accounts from the Keychain (\(error))."
+            problem = Problem("Couldn't Read Saved Workspaces", error)
         }
         syncWorkspaces()
     }
@@ -42,7 +43,7 @@ final class AppModel {
         do {
             try store.delete(id: account.id)
         } catch {
-            errorMessage = "Couldn't remove \(account.teamName) from the Keychain (\(error))."
+            problem = Problem("Couldn't Remove \(account.teamName)", error)
         }
         load()
     }
@@ -56,7 +57,7 @@ final class AppModel {
             }
         } catch {
             Log.workspace.error("Keychain save failed: \(Log.describe(error), privacy: .public)")
-            errorMessage = "Couldn't save the account to the Keychain (\(error))."
+            problem = Problem("Couldn't Save the Workspace", error)
         }
         load()
     }

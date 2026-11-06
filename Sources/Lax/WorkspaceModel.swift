@@ -8,6 +8,7 @@ final class WorkspaceModel: Identifiable {
     let account: SlackAccount
     private(set) var conversations: [SlackConversation] = []
     private(set) var users: [String: SlackUser] = [:]
+    private(set) var userGroupHandles: [String: String] = [:]
     private(set) var timelines: [String: Timeline] = [:]
     private(set) var typing = TypingTracker()
     private(set) var status: RealTimeUpdate.Status = .connecting
@@ -31,6 +32,8 @@ final class WorkspaceModel: Identifiable {
         client = SlackAPIClient(credentials: account.credentials)
     }
 
+    private var lastConversationKey: String { "lastConversation.\(account.id)" }
+
     var selectedConversation: SlackConversation? {
         conversations.first { $0.id == selectedConversationID }
     }
@@ -39,6 +42,7 @@ final class WorkspaceModel: Identifiable {
         guard tasks.isEmpty else { return }
         tasks = [
             Task { await loadConversations() },
+            Task { await loadUserGroups() },
             Task { await listen() },
         ]
     }
@@ -50,6 +54,7 @@ final class WorkspaceModel: Identifiable {
 
     func select(_ conversationID: SlackConversation.ID?) {
         selectedConversationID = conversationID
+        UserDefaults.standard.set(conversationID, forKey: lastConversationKey)
         guard let channel = conversationID else { return }
         if timelines[channel] == nil { loadOlder(in: channel) }
 
@@ -94,7 +99,9 @@ final class WorkspaceModel: Identifiable {
         let userNames = users.mapValues(\.preferredName)
         let channelNames = Dictionary(conversations.compactMap { c in c.name.map { (c.id, $0) } },
                                       uniquingKeysWith: { first, _ in first })
-        return SlackText(userName: { userNames[$0] }, channelName: { channelNames[$0] })
+        let groups = userGroupHandles
+        return SlackText(userName: { userNames[$0] }, channelName: { channelNames[$0] },
+                         subteamHandle: { groups[$0] })
     }
 
     // MARK: - Loading
@@ -118,10 +125,20 @@ final class WorkspaceModel: Identifiable {
     private func loadConversations() async {
         do {
             conversations = try await client.conversations()
+            if selectedConversationID == nil,
+               let last = UserDefaults.standard.string(forKey: lastConversationKey),
+               conversations.contains(where: { $0.id == last }) {
+                select(last)
+            }
             requestUsers(Set(conversations.compactMap(\.userID)))
         } catch {
             errorMessage = "Couldn't load conversations (\(error))."
         }
+    }
+
+    private func loadUserGroups() async {
+        // Not every workspace allows listing groups; mentions then fall back to "@group".
+        userGroupHandles = (try? await client.userGroupHandles()) ?? [:]
     }
 
     private func requestNames(for messages: [SlackMessage]) {

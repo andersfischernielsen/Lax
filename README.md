@@ -1,18 +1,97 @@
-# Lax
+<p align="center">
+<img height="256" src="docs/icon.png" alt="Lax icon" />
+</p>
 
-A native macOS Slack client. Targets macOS 27 or later.
+<h1 align="center">Lax</h1>
 
-- `Sources/LaxKit`: the Slack layer (credentials, Web API, WebSocket, cache). No UI.
-- `Sources/Lax`: the SwiftUI app.
+<p align="center">Lax is a <b>native</b> Slack client for macOS.</p>
 
-## Build
+<p align="center">
+<a href="../../releases/latest">Download</a> ·
+<a href="TODO.md">Roadmap</a> ·
+<a href="docs/SLACK_PROTOCOL.md">How it talks to Slack</a>
+</p>
 
-Needs Xcode 27 (the Command Line Tools lack SwiftUI's macro plugin).
+---
+
+## Features
+
+* Written in Swift and SwiftUI for macOS 27, with standard Mac controls, menus and shortcuts
+* Fast: native lists, cached formatting and images, and no web view once you're signed in
+* Sign in with your usual Slack login, SSO and 2FA included; several workspaces at once
+* Channels, direct messages and followed threads, each in its own window or tab
+* Threads open beside the conversation; search jumps straight to the message
+* Rich text composer with ⌘B, ⌘I, ⇧⌘X and ⇧⌘C, and autocomplete for `@people`, `#channels` and `:emoji:`
+* Custom and animated emoji everywhere, reactions, GIFs and videos
+* Bot messages with Block Kit layouts and buttons, and slash commands
+* Read state that follows what you've actually scrolled past, with unread messages marked
+* A Slack-style badge on the Dock icon instead of notifications
+* Open Quickly (⌘K), back and forward (⌘[ / ⌘]), and a keyboard shortcut for every message action
+* VoiceOver labels and a Liquid Glass icon
+
+## Download
+
+Builds of `main` are published on the [Releases](../../releases) page.
+
+They aren't notarized yet, so macOS stops the first launch. Open Lax once, then choose
+**Open Anyway** in System Settings ▸ Privacy & Security. Alternatively, run
+`xattr -dr com.apple.quarantine /Applications/Lax.app` after moving it there.
+
+## Signing in and privacy
+
+Lax signs in the way Slack's own web client does: you log in to `app.slack.com` in a
+private web view, and Lax keeps the resulting session (an `xoxc-` token and the `d`
+cookie) in your Keychain. It needs no Slack app, bot or admin approval, and talks only to
+Slack. The session cookie is only ever sent to Slack's own hosts, over HTTPS. Message text
+and tokens are never logged.
+
+Lax uses the same interface as Slack's web client, which Slack doesn't document for
+third parties, so check that it fits your workspace's policies.
+
+## Keyboard shortcuts
+
+| Action | Shortcut |
+| ------ | -------- |
+| Open Quickly | ⌘K |
+| Channels, Direct Messages, Threads | ⌘1, ⌘2, ⌘3 |
+| Back, Forward | ⌘[, ⌘] |
+| Previous or next conversation | ⌥⌘↑, ⌥⌘↓ (add ⇧ for unread ones) |
+| Search messages | ⌥⌘F |
+| Reply in thread | ⌘R |
+| Add reaction | ⇧⌘\ |
+| Mark message as unread | ⇧⌘U |
+| Copy message, copy link | ⌘C, ⌥⌘C |
+| Edit, delete own message | ⌥⌘E, ⌘⌫ |
+| Mark conversation read or unread | ⇧⌘R |
+| Mute or unmute conversation | ⇧⌘M |
+| Bold, italic, strikethrough, code | ⌘B, ⌘I, ⇧⌘X, ⇧⌘C |
+| New line in a message | ⇧↩ or ⌥↩ |
+
+## Building
+
+Lax needs Xcode 27 (the Command Line Tools alone lack SwiftUI's macros).
 
 ```sh
 swift build          # debug build
-swift test           # run LaxKit's tests (Swift Testing)
+swift test           # run the tests
 swift run Lax        # run the app without bundling
 scripts/bundle.sh    # release build, wrapped as build/Lax.app
 ```
 
+The code is in two parts:
+
+- `Sources/LaxKit`: the Slack layer (sign-in, Web API, real-time connection, message
+  formatting and state). Pure Swift, no UI, covered by Swift Testing.
+- `Sources/Lax`: the SwiftUI app.
+
+Ad-hoc signed builds ask for Keychain access again after every rebuild. If a certificate
+named "Lax Local Code Signing" is in your keychain, `scripts/bundle.sh` signs with it
+instead, and the Keychain remembers your choice.
+
+## Contributing
+
+Issues and pull requests are welcome. Please run `swift test` and keep `swift build`
+free of warnings.
+
+Lax is not affiliated with or endorsed by Slack Technologies. Slack is a trademark of
+Slack Technologies, LLC.

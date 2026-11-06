@@ -12,7 +12,7 @@ struct SidebarView: View {
         Group {
             if let workspace {
                 switch window.area {
-                case .home: ConversationList(workspace: workspace)
+                case .channels: ChannelList(workspace: workspace)
                 case .directMessages: DirectMessageList(workspace: workspace)
                 case .threads: FollowedThreadList(workspace: workspace)
                 }
@@ -71,18 +71,15 @@ struct SidebarView: View {
     }
 }
 
-private struct ConversationList: View {
+/// Public and private channels, by name.
+private struct ChannelList: View {
     let workspace: WorkspaceModel
     @Environment(WindowModel.self) private var window
 
     var body: some View {
         List(selection: Binding(get: { window.conversationID }, set: { window.select($0) })) {
-            ForEach(workspace.sidebarSections, id: \.title) { section in
-                Section(section.title) {
-                    ForEach(section.items, id: \.conversation.id) { item in
-                        ConversationRow(workspace: workspace, conversation: item.conversation, name: item.name)
-                    }
-                }
+            ForEach(workspace.channelsByName, id: \.conversation.id) { item in
+                ConversationRow(workspace: workspace, conversation: item.conversation, name: item.name)
             }
         }
         .overlay {

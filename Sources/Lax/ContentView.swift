@@ -7,7 +7,7 @@ struct ContentView: View {
     // Restored per window when Lax relaunches.
     @SceneStorage("account") private var storedAccount: String?
     @SceneStorage("conversation") private var storedConversation: String?
-    @SceneStorage("area") private var storedArea = WindowModel.Area.home
+    @SceneStorage("area") private var storedArea = WindowModel.Area.channels
     @FocusState private var searchFocused: Bool
 
     var body: some View {
@@ -73,8 +73,7 @@ struct ContentView: View {
                     Color.clear.contentShape(Rectangle()).onTapGesture { window.showsQuickSwitcher = false }
                     QuickSwitcherView(workspace: workspace) { id in
                         window.showsQuickSwitcher = false
-                        if window.area == .threads { window.area = .home }
-                        window.select(id)
+                        if let conversation = workspace.conversation(id) { window.show(conversation) }
                     } close: {
                         window.showsQuickSwitcher = false
                     }

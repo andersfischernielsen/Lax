@@ -28,7 +28,7 @@ struct SearchResultsView: View {
                                 .padding(.leading, 62)
                         }
                         .contentShape(Rectangle())
-                        .onTapGesture { window.open(result) }
+                        .onTapGesture { window.open(result, conversation: workspace.conversation(result.channelID)) }
                         Divider().padding(.top, 8)
                     }
                 }

@@ -6,7 +6,7 @@ import Observation
 final class WindowModel {
     /// What the sidebar lists: one of Slack's main views.
     enum Area: String, CaseIterable, Identifiable {
-        case home
+        case channels
         case directMessages
         case threads
 
@@ -14,7 +14,7 @@ final class WindowModel {
 
         var title: String {
             switch self {
-            case .home: "Home"
+            case .channels: "Channels"
             case .directMessages: "Direct Messages"
             case .threads: "Threads"
             }
@@ -22,14 +22,14 @@ final class WindowModel {
 
         var systemImage: String {
             switch self {
-            case .home: "house"
+            case .channels: "number"
             case .directMessages: "bubble.left.and.bubble.right"
             case .threads: "text.bubble"
             }
         }
     }
 
-    var area = Area.home
+    var area = Area.channels
     var accountID: SlackAccount.ID?
     var conversationID: SlackConversation.ID?
     /// The thread open in the Threads view.
@@ -81,11 +81,17 @@ final class WindowModel {
         searchResults = nil
     }
 
+    /// Shows a conversation, switching to the area that lists it.
+    func show(_ conversation: SlackConversation) {
+        area = conversation.isDirect ? .directMessages : .channels
+        select(conversation.id)
+    }
+
     /// Opens the result's conversation, and its thread if it's a reply.
-    func open(_ result: SearchResult) {
+    func open(_ result: SearchResult, conversation: SlackConversation?) {
         searchResults = nil
         searchQuery = ""
-        select(result.channelID)
+        if let conversation { show(conversation) } else { select(result.channelID) }
         if let thread = result.message.threadTS, thread != result.message.ts {
             openThread(thread, in: result.channelID)
         }

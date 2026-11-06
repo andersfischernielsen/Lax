@@ -141,20 +141,11 @@ final class WorkspaceModel: Identifiable {
 
     // MARK: - Sidebar
 
-    struct SidebarSection {
-        let title: String
-        let items: [(conversation: SlackConversation, name: String)]
-    }
-
-    /// Channels, then direct messages, each by name: the sidebar and its keyboard order.
-    var sidebarSections: [SidebarSection] {
-        [("Channels", [SlackConversation.Kind.channel, .privateChannel]),
-         ("Direct Messages", [.directMessage, .groupDirectMessage])].map { title, kinds in
-            SidebarSection(title: title, items: conversations
-                .filter { kinds.contains($0.kind) }
-                .map { (conversation: $0, name: displayName(of: $0)) }
-                .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending })
-        }
+    /// Channels by name: the Channels sidebar and its keyboard order.
+    var channelsByName: [(conversation: SlackConversation, name: String)] {
+        conversations.filter { !$0.isDirect }
+            .map { (conversation: $0, name: displayName(of: $0)) }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
     /// Direct messages, most recently active first.
@@ -167,7 +158,7 @@ final class WorkspaceModel: Identifiable {
     /// Conversation order for keyboard navigation in an area.
     func navigationOrder(in area: WindowModel.Area) -> [String] {
         switch area {
-        case .home: sidebarSections.flatMap { $0.items.map(\.conversation.id) }
+        case .channels: channelsByName.map(\.conversation.id)
         case .directMessages: directMessagesByActivity.map(\.conversation.id)
         case .threads: []
         }

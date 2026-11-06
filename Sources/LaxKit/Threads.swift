@@ -5,9 +5,9 @@ public struct ThreadSummary: Decodable, Equatable, Identifiable, Sendable {
     public let channelID: String
     public let root: SlackMessage
     /// The newest replies, oldest first; Slack sends a few.
-    public let latestReplies: [SlackMessage]
-    public let unreadReplies: Int
-    public let latestReplyTS: String?
+    public internal(set) var latestReplies: [SlackMessage]
+    public internal(set) var unreadReplies: Int
+    public internal(set) var latestReplyTS: String?
 
     public var id: String { "\(channelID)/\(root.ts)" }
 
@@ -35,6 +35,32 @@ public struct ThreadSummary: Decodable, Equatable, Identifiable, Sendable {
         enum CodingKeys: String, CodingKey {
             case channel
             case latestReply = "latest_reply"
+        }
+    }
+}
+
+extension [ThreadSummary] {
+    /// The list after a reply arrived: its thread moves to the top with the reply, unread
+    /// unless the user wrote it. Replies to threads not in the list change nothing.
+    public func receiving(_ reply: SlackMessage, in channel: String, ownUserID: String) -> [ThreadSummary] {
+        guard let threadTS = reply.threadTS, threadTS != reply.ts,
+              let index = firstIndex(where: { $0.channelID == channel && $0.root.ts == threadTS }) else { return self }
+        var thread = self[index]
+        guard !thread.latestReplies.contains(where: { $0.ts == reply.ts }) else { return self }
+        thread.latestReplies.append(reply)
+        thread.latestReplyTS = reply.ts
+        if reply.userID != ownUserID { thread.unreadReplies += 1 }
+        var result = self
+        result.remove(at: index)
+        return [thread] + result
+    }
+
+    /// The list with a thread read.
+    public func markingRead(_ id: ThreadSummary.ID) -> [ThreadSummary] {
+        map { thread in
+            var thread = thread
+            if thread.id == id { thread.unreadReplies = 0 }
+            return thread
         }
     }
 }

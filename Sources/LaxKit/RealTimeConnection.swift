@@ -19,6 +19,7 @@ public struct RealTimeConnection: Sendable {
     public let client: SlackAPIClient
     private let session: URLSession
     private let pingInterval: Duration
+    private let outbox = Outbox()
 
     public init(client: SlackAPIClient, session: URLSession = .shared, pingInterval: Duration = .seconds(30)) {
         self.client = client
@@ -53,6 +54,8 @@ public struct RealTimeConnection: Sendable {
                     attempt = 0
                     Log.realTime.info("\(host, privacy: .public): connected")
                     continuation.yield(.status(.connected))
+                    await outbox.attach(socket)
+                    defer { Task { await outbox.detach(socket) } }
                     try await serve(socket, continuation)
                     Log.realTime.info("\(host, privacy: .public): Slack said goodbye")
                 } onCancel: {
@@ -123,12 +126,10 @@ public struct RealTimeConnection: Sendable {
                     continuation.yield(.event(event))
                 }
             }
-            group.addTask { [pingInterval] in
-                var id = 0
+            group.addTask { [pingInterval, outbox] in
                 while true {
                     try await Task.sleep(for: pingInterval)
-                    id += 1
-                    try await socket.send(.string(#"{"type":"ping","id":\#(id)}"#))
+                    try await outbox.send { #"{"type":"ping","id":\#($0)}"# }
                 }
             }
             try await group.next()
@@ -142,5 +143,35 @@ public struct RealTimeConnection: Sendable {
         case .data(let data): RealTimeEvent.parse(data)
         @unknown default: nil
         }
+    }
+}
+
+extension RealTimeConnection {
+    /// Tells the conversation the user is typing. Dropped while disconnected.
+    public func sendTyping(in channel: String) async {
+        let channel = channel.filter { $0.isLetter || $0.isNumber }
+        try? await outbox.send { #"{"type":"typing","id":\#($0),"channel":"\#(channel)"}"# }
+    }
+}
+
+/// The open socket, for sending, with the running message ID Slack expects.
+private actor Outbox {
+    private var socket: URLSessionWebSocketTask?
+    private var nextID = 1
+
+    func attach(_ socket: URLSessionWebSocketTask) {
+        self.socket = socket
+    }
+
+    /// Forgets `socket` unless a reconnect has already replaced it.
+    func detach(_ socket: URLSessionWebSocketTask) {
+        if self.socket === socket { self.socket = nil }
+    }
+
+    /// Sends the JSON built for the next message ID; does nothing while disconnected.
+    func send(_ json: (Int) -> String) async throws {
+        guard let socket else { return }
+        defer { nextID += 1 }
+        try await socket.send(.string(json(nextID)))
     }
 }

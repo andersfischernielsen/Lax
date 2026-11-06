@@ -12,6 +12,14 @@ public enum SlackWebSession {
         url?.host == "app.slack.com" && url?.path.hasPrefix("/client") == true
     }
 
+    /// After sign-in Slack shows "Launching <workspace>" at `<team>.slack.com/ssb/redirect`
+    /// and tries to hand the session to its desktop app. The web client works with the
+    /// same session, so this is where to go instead; nil for any other page.
+    public static func webClientURL(insteadOf url: URL?) -> URL? {
+        guard let url, url.host?.hasSuffix(".slack.com") == true, url.path == "/ssb/redirect" else { return nil }
+        return URL(string: "https://app.slack.com/client")
+    }
+
     /// One `SlackCredentials` per workspace in the config that has a web token.
     public static func credentials(localConfig: String, cookies: [HTTPCookie]) -> [SlackCredentials] {
         guard let data = localConfig.data(using: .utf8),

@@ -35,6 +35,10 @@ final class SignInController: NSObject, Identifiable, WKNavigationDelegate, WKUI
         urlObservation = webView.observe(\.url) { [weak self] webView, _ in
             MainActor.assumeIsolated {
                 Log.signIn.info("page: \(Log.redacted(webView.url), privacy: .public)")
+                if let webClient = SlackWebSession.webClientURL(insteadOf: webView.url) {
+                    Log.signIn.info("skipping the desktop-app handoff")
+                    webView.load(URLRequest(url: webClient))
+                }
                 self?.extractIfSignedIn()
             }
         }

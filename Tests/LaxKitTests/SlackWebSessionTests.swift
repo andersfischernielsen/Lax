@@ -33,6 +33,14 @@ private let config = """
     #expect(SlackWebSession.credentials(localConfig: "{", cookies: []).isEmpty)
 }
 
+@Test func skipsTheDesktopAppHandoff() {
+    let launch = URL(string: "https://acme.slack.com/ssb/redirect")
+    #expect(SlackWebSession.webClientURL(insteadOf: launch)?.absoluteString == "https://app.slack.com/client")
+    #expect(SlackWebSession.webClientURL(insteadOf: URL(string: "https://acme.slack.com/messages")) == nil)
+    #expect(SlackWebSession.webClientURL(insteadOf: URL(string: "https://evil.example.com/ssb/redirect")) == nil)
+    #expect(SlackWebSession.webClientURL(insteadOf: nil) == nil)
+}
+
 @Test func recognisesSignedInClientURL() {
     #expect(SlackWebSession.isSignedInClientURL(URL(string: "https://app.slack.com/client/T1/C1")))
     #expect(!SlackWebSession.isSignedInClientURL(URL(string: "https://acme.slack.com/signin")))

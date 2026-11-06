@@ -40,6 +40,12 @@ extension SlackAPIClient {
         let _: Empty = try await call("conversations.mark", ["channel": channel, "ts": ts])
     }
 
+    /// User group ID → handle (without the @), for `<!subteam^S…>` mentions.
+    public func userGroupHandles() async throws -> [String: String] {
+        let response: UserGroupsResponse = try await call("usergroups.list", ["include_disabled": "true"])
+        return Dictionary(response.usergroups.map { ($0.id, $0.handle) }, uniquingKeysWith: { first, _ in first })
+    }
+
     public func user(id: String) async throws -> SlackUser {
         let response: UserResponse = try await call("users.info", ["user": id])
         return response.user
@@ -101,6 +107,15 @@ private struct ConversationInfoResponse: Decodable {
     }
 
     let channel: Channel
+}
+
+private struct UserGroupsResponse: Decodable {
+    struct Group: Decodable {
+        let id: String
+        let handle: String
+    }
+
+    let usergroups: [Group]
 }
 
 private struct UserResponse: Decodable {

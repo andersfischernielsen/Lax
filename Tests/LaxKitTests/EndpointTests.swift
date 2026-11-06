@@ -89,6 +89,13 @@ struct EndpointTests {
         #expect(mark.formFields["ts"] == "1700000009.000900")
     }
 
+    @Test func userGroupHandlesByID() async throws {
+        StubURLProtocol.reset(["usergroups.list": [#"""
+            {"ok":true,"usergroups":[{"id":"S1","handle":"platform","name":"Platform"},{"id":"S2","handle":"oncall"}]}
+            """#]])
+        #expect(try await client.userGroupHandles() == ["S1": "platform", "S2": "oncall"])
+    }
+
     @Test func realTimeURLComesFromRTMConnect() async throws {
         StubURLProtocol.reset(["rtm.connect": [#"{"ok":true,"url":"wss://wss-primary.slack.com/websocket/abc"}"#]])
         #expect(try await client.realTimeURL().absoluteString == "wss://wss-primary.slack.com/websocket/abc")

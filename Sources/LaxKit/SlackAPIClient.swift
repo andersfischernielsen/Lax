@@ -36,9 +36,18 @@ public struct SlackAPIClient: Sendable {
             Log.api.debug("\(method, privacy: .public) ok on \(host, privacy: .public) in \(ContinuousClock.now - start, privacy: .public)")
             return decoded
         } catch {
-            Log.api.error("\(method, privacy: .public) failed on \(host, privacy: .public): \(Log.describe(error), privacy: .public)")
+            let error = Self.normalized(error)
+            if !(error is CancellationError) {
+                Log.api.error("\(method, privacy: .public) failed on \(host, privacy: .public): \(Log.describe(error), privacy: .public)")
+            }
             throw error
         }
+    }
+
+    /// URLSession reports a cancelled task as `URLError.cancelled`; callers expect Swift's
+    /// `CancellationError`, which they ignore.
+    static func normalized(_ error: Error) -> Error {
+        (error as? URLError)?.code == .cancelled ? CancellationError() : error
     }
 
     /// Downloads a file Slack hosts (e.g. `url_private`, thumbnails) with the session cookie.
@@ -50,7 +59,12 @@ public struct SlackAPIClient: Sendable {
         if let cookie = credentials.cookieHeader {
             request.setValue(cookie, forHTTPHeaderField: "Cookie")
         }
-        let (data, response) = try await session.data(for: request)
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            throw Self.normalized(error)
+        }
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw SlackAPIError.http(status: (response as? HTTPURLResponse)?.statusCode ?? 0)
         }

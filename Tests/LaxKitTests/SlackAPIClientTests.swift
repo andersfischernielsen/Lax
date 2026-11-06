@@ -65,3 +65,8 @@ private let credentials = SlackCredentials(
 func cookiesOnlyGoToSlackHosts(_ url: String, _ allowed: Bool) {
     #expect(SlackAPIClient.isSlackHost(URL(string: url)!) == allowed)
 }
+
+@Test func cancelledRequestsThrowCancellationError() {
+    #expect(SlackAPIClient.normalized(URLError(.cancelled)) is CancellationError)
+    #expect(SlackAPIClient.normalized(URLError(.timedOut)) is URLError)
+}

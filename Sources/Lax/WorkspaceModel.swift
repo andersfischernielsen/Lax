@@ -179,7 +179,10 @@ final class WorkspaceModel: Identifiable {
 
     private func requestNames(for messages: [SlackMessage]) {
         var ids = Set(messages.compactMap(\.userID))
-        for message in messages { ids.formUnion(SlackText.mentionedUserIDs(in: message.text)) }
+        for message in messages {
+            let texts = [message.markup] + message.attachments.flatMap { [$0.pretext, $0.body].compactMap { $0 } }
+            for text in texts { ids.formUnion(SlackText.mentionedUserIDs(in: text)) }
+        }
         requestUsers(ids)
     }
 

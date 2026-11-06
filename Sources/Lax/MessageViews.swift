@@ -20,10 +20,13 @@ struct MessageItem: View {
             message: message,
             author: workspace.authorName(of: message),
             avatarURL: message.userID.flatMap { workspace.users[$0] }?.avatarURL,
-            text: MessageStyle.styled(formatter.attributed(message.text)),
+            text: MessageStyle.styled(formatter.attributed(message.markup)),
             showsHeader: showsHeader,
             isSystem: message.subtype.map(Self.systemSubtypes.contains) ?? false
         ) {
+            ForEach(Array(message.attachments.enumerated()), id: \.offset) { _, attachment in
+                AttachmentView(attachment: attachment, formatter: formatter)
+            }
             if !message.files.isEmpty {
                 FilesView(files: message.files, loadImage: workspace.image(at:))
             }

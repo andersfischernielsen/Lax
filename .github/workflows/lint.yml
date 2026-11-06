@@ -1,0 +1,17 @@
+name: Lint
+
+# swift-format's rules, as configured in .swift-format.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/select-xcode
+      - name: swift format lint
+        run: swift format lint --strict --recursive Sources Tests Package.swift

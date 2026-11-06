@@ -1,0 +1,14 @@
+name: Select Xcode 27
+description: Switches to the newest Xcode 27 on the runner; Lax needs the macOS 27 SDK.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        xcode="$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -n 1)"
+        if [ -z "$xcode" ]; then
+          echo "::error::Lax needs Xcode 27 (the macOS 27 SDK); this runner has: $(ls -d /Applications/Xcode*.app | xargs)"
+          exit 1
+        fi
+        sudo xcode-select --switch "$xcode"
+        xcodebuild -version

@@ -1,0 +1,28 @@
+name: Build
+
+# Builds with warnings as errors, runs the tests, and packages the app.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/select-xcode
+      - name: Build
+        run: swift build -Xswiftc -warnings-as-errors
+      - name: Package the app
+        run: scripts/bundle.sh
+
+  test:
+    name: Test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/select-xcode
+      - name: Test
+        run: swift test -Xswiftc -warnings-as-errors

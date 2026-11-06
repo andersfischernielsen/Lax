@@ -106,8 +106,14 @@ instead, and the Keychain remembers your choice.
 
 ## Contributing
 
-Issues and pull requests are welcome. Please run `swift test` and keep `swift build`
-free of warnings.
+Issues and pull requests are welcome. Pull requests need to pass three checks, which you
+can run locally:
+
+```sh
+swift format lint --strict --recursive Sources Tests Package.swift     # Lint
+swift format format --in-place --recursive Sources Tests Package.swift # Format
+swift build -Xswiftc -warnings-as-errors && swift test                 # Build and Test
+```
 
 ## License
 

@@ -16,7 +16,7 @@
 - [x] Unread message marker line
 - [x] "User is typing" indicators (Slack)
 - [x] Set own nickname (Slack): display name, from the workspace menu
-- [ ] @role (Discord) or @subteam (Slack) mentions: shown in messages; no autocomplete when writing
+- [x] @role (Discord) or @subteam (Slack) mentions: shown in messages, and suggested while typing
 - [ ] Video calls and screen sharing (huddles) — last
 
 
@@ -37,8 +37,8 @@
 - [ ] Slash commands and bot buttons
 - [x] Mark as unread: from the message menu (moves the read position back) and the sidebar
 - [x] App icon
-- [ ] Mention autocomplete (@person, #channel) in the composer
-- [ ] Emoji autocomplete: typing `:` suggests shortcodes, standard and custom
+- [x] Mention autocomplete (@person, #channel) in the composer
+- [x] Emoji autocomplete: typing `:` suggests shortcodes, standard and custom
 - [x] Separate native views for all threads, all DMs and the base channel view:
       View ▸ Home / Direct Messages / Threads (⌘1–3), per window or tab
 - [x] View → Show Tab Bar: each window and tab keeps its own conversation
@@ -56,7 +56,7 @@
 
 ## Bugs
 
-- [ ] Shift-Return and Option-Return don't start a new line in the composer
+- [x] Shift-Return and Option-Return don't start a new line in the composer
 - [ ] Icons flicker when the window is closed (Lax still running) and reopened from the Dock
 - [ ] No window at launch when the previous session ended with every window closed
       (restored state wins over `.defaultLaunchBehavior(.presented)`); the Dock icon opens one

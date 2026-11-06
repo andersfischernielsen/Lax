@@ -204,71 +204,74 @@ struct ComposerView<Status: View>: View {
     var accept: (Suggestion) -> Void = { _ in }
     @ViewBuilder var status: Status
     let send: () -> Void
-    /// The cursor, in characters into the draft.
-    @State private var cursor = 0
-    @State private var fieldHeight: CGFloat = 17
     @State private var highlighted = 0
     /// The word whose suggestions were dismissed with Esc.
     @State private var dismissed: Autocomplete.Token?
 
     var body: some View {
-        let offset = min(cursor, draft.count)
-        let token = Autocomplete.token(in: String(draft.prefix(offset)))
+        // Completes the word at the end of the draft, where typing happens.
+        let token = Autocomplete.token(in: draft)
         let suggestions = token.flatMap { $0 == dismissed ? nil : suggest($0) } ?? []
         VStack(alignment: .leading, spacing: 4) {
             status
             if !suggestions.isEmpty, let token {
                 SuggestionList(suggestions: suggestions, highlighted: highlighted) { take($0, for: token) }
             }
-            MessageField(placeholder: placeholder, text: $draft, cursor: $cursor, height: $fieldHeight,
-                         identifier: identifier) { key in
-                handle(key, token: token, suggestions: suggestions)
-            }
-            .frame(height: fieldHeight)
-            .overlay(alignment: .topLeading) {
+            ZStack(alignment: .topLeading) {
+                // Sizes the field to its text, one line up to eight; TextEditor alone fills all
+                // the space it's given.
+                Text(draft.isEmpty ? " " : draft + " ")
+                    .lineLimit(1...8)
+                    .hidden()
                 if draft.isEmpty {
-                    Text(placeholder).foregroundStyle(.placeholder).allowsHitTesting(false)
+                    // Where TextEditor starts its text: AppKit's standard line padding.
+                    Text(placeholder).foregroundStyle(.placeholder).padding(.leading, 5).allowsHitTesting(false)
                 }
+                TextEditor(text: $draft)
+                    .textEditorStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .accessibilityIdentifier(identifier)
+                    // Return sends; Shift- and Option-Return fall through to a new line.
+                    .onKeyPress(keys: [.return]) { press in
+                        guard press.modifiers.isDisjoint(with: [.shift, .option]) else { return .ignored }
+                        if let token, suggestions.indices.contains(highlighted) {
+                            take(suggestions[highlighted], for: token)
+                        } else {
+                            send()
+                        }
+                        return .handled
+                    }
+                    .onKeyPress(.tab) {
+                        guard let token, suggestions.indices.contains(highlighted) else { return .ignored }
+                        take(suggestions[highlighted], for: token)
+                        return .handled
+                    }
+                    .onKeyPress(.downArrow) {
+                        guard !suggestions.isEmpty else { return .ignored }
+                        highlighted = min(highlighted + 1, suggestions.count - 1)
+                        return .handled
+                    }
+                    .onKeyPress(.upArrow) {
+                        guard !suggestions.isEmpty else { return .ignored }
+                        highlighted = max(highlighted - 1, 0)
+                        return .handled
+                    }
+                    .onKeyPress(.escape) {
+                        guard !suggestions.isEmpty else { return .ignored }
+                        dismissed = token
+                        return .handled
+                    }
             }
             .padding(10)
             .background(RoundedRectangle(cornerRadius: 8).strokeBorder(.separator))
             .onChange(of: draft) { highlighted = 0 }
         }
-        .onAppear { cursor = draft.count }
         .padding(.horizontal, 16)
         .padding(.bottom, 12)
     }
 
-    /// Return sends, unless a suggestion is showing; arrows, Tab and Esc work the suggestions.
-    private func handle(_ key: MessageField.Key, token: Autocomplete.Token?, suggestions: [Suggestion]) -> Bool {
-        let current = suggestions.indices.contains(highlighted) ? suggestions[highlighted] : nil
-        switch key {
-        case .send:
-            if let token, let current { take(current, for: token) } else { send() }
-            return true
-        case .tab:
-            guard let token, let current else { return false }
-            take(current, for: token)
-            return true
-        case .down:
-            guard !suggestions.isEmpty else { return false }
-            highlighted = min(highlighted + 1, suggestions.count - 1)
-            return true
-        case .up:
-            guard !suggestions.isEmpty else { return false }
-            highlighted = max(highlighted - 1, 0)
-            return true
-        case .escape:
-            guard !suggestions.isEmpty else { return false }
-            dismissed = token
-            return true
-        }
-    }
-
     private func take(_ suggestion: Suggestion, for token: Autocomplete.Token) {
-        let edited = TextEditing.replacing(token.start..<min(cursor, draft.count), in: draft, with: suggestion.insert + " ")
-        draft = edited.text
-        cursor = edited.cursor
+        draft = TextEditing.replacing(token.start..<draft.count, in: draft, with: suggestion.insert + " ").text
         accept(suggestion)
     }
 }

@@ -11,7 +11,7 @@ struct QuickSwitcherView: View {
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        let ids = QuickSwitcher.rank(candidates, query: query)
+        let ids = matches
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
@@ -25,10 +25,14 @@ struct QuickSwitcherView: View {
                     .onSubmit { if let id = highlighted ?? ids.first { open(id) } }
             }
             .padding(12)
-            Divider()
-            if ids.isEmpty {
+            // Just the field until something is typed, like Spotlight.
+            if query.trimmingCharacters(in: .whitespaces).isEmpty {
+                EmptyView()
+            } else if ids.isEmpty {
+                Divider()
                 Text("No Matches").foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(20)
             } else {
+                Divider()
                 ScrollViewReader { proxy in
                     List(ids, id: \.self, selection: $highlighted) { id in
                         if let conversation = workspace.conversation(id) {
@@ -51,11 +55,12 @@ struct QuickSwitcherView: View {
         .shadow(radius: 24, y: 8)
         .onExitCommand(perform: close)
         // The best match is highlighted, so Return opens it.
-        .onAppear {
-            isFocused = true
-            highlighted = QuickSwitcher.rank(candidates, query: query).first
-        }
-        .onChange(of: query) { highlighted = QuickSwitcher.rank(candidates, query: query).first }
+        .onAppear { isFocused = true }
+        .onChange(of: query) { highlighted = matches.first }
+    }
+
+    private var matches: [String] {
+        query.trimmingCharacters(in: .whitespaces).isEmpty ? [] : QuickSwitcher.rank(candidates, query: query)
     }
 
     private var candidates: [QuickSwitcher.Candidate] {

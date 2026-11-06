@@ -24,12 +24,21 @@ public struct SlackAPIClient: Sendable {
         _ params: [String: String] = [:],
         as type: Response.Type = Response.self
     ) async throws -> Response {
-        let (data, response) = try await session.data(for: makeRequest(method, params))
-        guard let http = response as? HTTPURLResponse else { throw SlackAPIError.invalidResponse }
-        guard (200..<300).contains(http.statusCode) else {
-            throw SlackAPIError.http(status: http.statusCode)
+        let start = ContinuousClock.now
+        let host = credentials.workspaceDomain
+        do {
+            let (data, response) = try await session.data(for: makeRequest(method, params))
+            guard let http = response as? HTTPURLResponse else { throw SlackAPIError.invalidResponse }
+            guard (200..<300).contains(http.statusCode) else {
+                throw SlackAPIError.http(status: http.statusCode)
+            }
+            let decoded = try Self.decode(Response.self, from: data)
+            Log.api.debug("\(method, privacy: .public) ok on \(host, privacy: .public) in \(ContinuousClock.now - start, privacy: .public)")
+            return decoded
+        } catch {
+            Log.api.error("\(method, privacy: .public) failed on \(host, privacy: .public): \(Log.describe(error), privacy: .public)")
+            throw error
         }
-        return try Self.decode(Response.self, from: data)
     }
 
     public func makeRequest(_ method: String, _ params: [String: String] = [:]) -> URLRequest {

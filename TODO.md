@@ -17,6 +17,7 @@
 
 ## Done
 
+- [x] File and image uploads by paste, drag and drop or ⌘U, in conversations and threads
 - [x] Sign-in with the usual Slack login, SSO and 2FA codes included; several workspaces
 - [x] Channels, direct messages and group DMs, each view in its own window or tab
       (View ▸ Channels / Direct Messages / Threads, ⌘1–3)

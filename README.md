@@ -23,6 +23,7 @@
 * Threads open beside the conversation and search jumps straight to messages
 * Rich text composer with ⌘B, ⌘I, ⇧⌘X and ⇧⌘C, and autocomplete for `@people`, `#channels` and `:emoji:`
 * Custom and animated emoji everywhere, reactions, GIFs and videos
+* File and image uploads: paste them, drop them on a conversation, or press ⌘U
 * Bot messages with Block Kit layouts and buttons, and slash commands
 * Read state that follows what you've actually scrolled past, with unread messages marked
 * A Slack-style badge on the Dock icon instead of notifications
@@ -76,6 +77,7 @@ third parties, so check that it fits your workspace's policies.
 | Edit, delete own message | ⌥⌘E, ⌘⌫ |
 | Mark conversation read or unread | ⇧⌘R |
 | Mute or unmute conversation | ⇧⌘M |
+| Attach files (in the composer) | ⌘U |
 | Bold, italic, strikethrough, code | ⌘B, ⌘I, ⇧⌘X, ⇧⌘C |
 | New line in a message | ⇧↩ or ⌥↩ |
 

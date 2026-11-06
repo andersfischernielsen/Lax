@@ -102,3 +102,16 @@ private func runs(_ attributed: AttributedString) -> [(String, InlinePresentatio
     #expect(resolved["loop-a"] == nil)
     #expect(resolved["broken"] == nil)
 }
+
+@Test func sendingEscapesTextButKeepsTokens() {
+    #expect(SlackText.encodedForSending("a < b && c > d") == "a &lt; b &amp;&amp; c &gt; d")
+    #expect(SlackText.encodedForSending("hi <@U1> see <https://x.io?a=1&b=2|docs> <!here> <not a token>")
+            == "hi <@U1> see <https://x.io?a=1&b=2|docs> <!here> &lt;not a token&gt;")
+}
+
+@Test func editingRoundTrips() {
+    let markup = "a &lt; b &amp; <@U1> <https://x.io|docs>"
+    let editable = SlackText.editable(markup)
+    #expect(editable == "a < b & <@U1> <https://x.io|docs>")
+    #expect(SlackText.encodedForSending(editable) == markup)
+}

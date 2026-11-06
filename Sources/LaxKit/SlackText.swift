@@ -51,6 +51,27 @@ public struct SlackText: Sendable {
         String(attributed(markup).characters)
     }
 
+    /// A message's markup as text to edit: escapes undone, mentions and links kept as tokens.
+    public static func editable(_ markup: String) -> String {
+        unescape(markup[...])
+    }
+
+    /// Text typed by the user, made safe to send: `&`, `<` and `>` escaped, except in
+    /// mention and link tokens like `<@U1>`, `<#C1>`, `<!here>` and `<https://…>`.
+    public static func encodedForSending(_ text: String) -> String {
+        var result = ""
+        var rest = text[...]
+        while let token = rest.firstMatch(of: /<(?:[@#!][^<>\s]+|(?:https?|mailto):[^<>\s]+)(?:\|[^<>]*)?>/) {
+            result += escape(rest[..<token.range.lowerBound]) + token.output
+            rest = rest[token.range.upperBound...]
+        }
+        return result + escape(rest)
+    }
+
+    private static func escape(_ text: Substring) -> String {
+        String(text).replacing("&", with: "&amp;").replacing("<", with: "&lt;").replacing(">", with: "&gt;")
+    }
+
     /// User IDs mentioned with `<@U…>`, so their names can be fetched.
     public static func mentionedUserIDs(in markup: String) -> Set<String> {
         Set(markup.matches(of: /<@([A-Z0-9]+)(?:\|[^>]*)?>/).map { String($0.1) })

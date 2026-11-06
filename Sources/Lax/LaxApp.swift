@@ -26,7 +26,6 @@ struct LaxApp: App {
         .commands {
             WorkspaceCommands(model: model)
             GoCommands(model: model)
-            InspectorCommands()
         }
 
         Settings {

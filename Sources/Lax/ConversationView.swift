@@ -113,19 +113,14 @@ struct ConversationView: View {
                 })
     }
 
-    /// The message whose thread is in the inspector. Selecting one with replies opens the
-    /// inspector; selecting any other updates it if open, so a thread can be started there.
+    /// The message whose thread is in the inspector; one without replies shows there alone,
+    /// ready for the first reply.
     private func selectedMessage(_ messages: [SlackMessage]) -> Binding<String?> {
         Binding(get: { window.selectedMessage },
                 set: { ts in
                     window.selectedMessage = ts
                     guard let message = messages.first(where: { $0.ts == ts }) else { return }
-                    let root = message.threadTS ?? message.ts
-                    if message.replyCount > 0 {
-                        window.openThread(root, in: conversation.id)
-                    } else {
-                        window.thread = ThreadRef(channel: conversation.id, ts: root)
-                    }
+                    window.openThread(message.threadTS ?? message.ts, in: conversation.id)
                 })
     }
 

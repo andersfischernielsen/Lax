@@ -50,7 +50,8 @@ struct ContentView: View {
             }
         }
         // On the split view, not the detail, so the inspector gets the full window height.
-        .inspector(isPresented: $window.showsInspector) {
+        // Always beside conversations; in Threads the thread is the main view already.
+        .inspector(isPresented: .constant(window.area != .threads)) {
             Group {
                 if let workspace, let thread = window.thread {
                     ThreadView(workspace: workspace, thread: thread).id(thread)
@@ -60,11 +61,6 @@ struct ContentView: View {
                 }
             }
             .inspectorColumnWidth(min: 300, ideal: 380, max: 560)
-            .toolbar {
-                Spacer()
-                Button("Thread", systemImage: "sidebar.trailing") { window.showsInspector.toggle() }
-                    .help(window.showsInspector ? "Hide the thread" : "Show the thread")
-            }
         }
         .overlay(alignment: .top) {
             if window.showsQuickSwitcher, let workspace {

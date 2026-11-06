@@ -5,7 +5,6 @@ import SwiftUI
 struct ThreadView: View {
     let workspace: WorkspaceModel
     let thread: ThreadRef
-    @Environment(WindowModel.self) private var window
 
     var body: some View {
         let messages = workspace.threads[thread]?.messages ?? []
@@ -39,7 +38,6 @@ struct ThreadView: View {
             }
         }
         .task { await workspace.loadThread(thread) }
-        .onExitCommand { window.showsInspector = false }
     }
 
     private var draft: Binding<String> {

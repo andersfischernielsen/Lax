@@ -1,3 +1,4 @@
+import AppKit
 import LaxKit
 import SwiftUI
 
@@ -16,7 +17,7 @@ enum MessageStyle {
         }
         for start in quoteLineStarts(in: result).reversed() {
             var bar = AttributedString("▎ ")
-            bar.foregroundColor = .secondary.opacity(0.6)
+            bar.foregroundColor = Color(nsColor: .tertiaryLabelColor)
             result.insert(bar, at: start)
         }
         return result

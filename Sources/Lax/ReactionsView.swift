@@ -21,7 +21,7 @@ struct ReactionsView: View {
                     }
                     .padding(.horizontal, 7)
                     .padding(.vertical, 2)
-                    .background(Capsule().fill(isMine ? AnyShapeStyle(.tint.opacity(0.25)) : AnyShapeStyle(.quaternary)))
+                    .background(Capsule().fill(isMine ? AnyShapeStyle(.tint.quaternary) : AnyShapeStyle(.quaternary)))
                     .overlay(Capsule().strokeBorder(isMine ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear)))
                 }
                 .buttonStyle(.plain)

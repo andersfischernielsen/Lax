@@ -134,9 +134,10 @@ private struct DayDivider: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Rectangle().fill(.separator).frame(height: 1)
+            VStack { Divider() }
             Text(DayLabel.text(for: date)).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-            Rectangle().fill(.separator).frame(height: 1)
+                .accessibilityAddTraits(.isHeader)
+            VStack { Divider() }
         }
         .padding(.horizontal, 16)
         .padding(.top, 14)

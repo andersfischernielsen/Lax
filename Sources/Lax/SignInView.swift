@@ -32,7 +32,7 @@ struct SignInView: View {
             }
         case .failed(let message):
             HStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
+                Image(systemName: "exclamationmark.triangle.fill").symbolRenderingMode(.multicolor)
                 Text(message).lineLimit(2)
                 Button("Try Again") { controller.retry() }
             }

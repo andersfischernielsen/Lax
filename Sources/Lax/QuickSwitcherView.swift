@@ -8,21 +8,16 @@ struct QuickSwitcherView: View {
     let close: () -> Void
     @State private var query = ""
     @State private var highlighted: SlackConversation.ID?
-    @FocusState private var isFocused: Bool
 
     var body: some View {
         let ids = matches
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Go to a channel or person", text: $query)
-                    .textFieldStyle(.plain)
-                    .font(.title3)
-                    .focused($isFocused)
-                    // The cursor stays in the field; arrows move the highlight in the list.
-                    .onKeyPress(.downArrow) { move(1, in: ids); return .handled }
-                    .onKeyPress(.upArrow) { move(-1, in: ids); return .handled }
-                    .onSubmit { if let id = highlighted ?? ids.first { open(id) } }
+                CommandField(placeholder: "Go to a channel or person", text: $query,
+                             move: { move($0, in: ids) },
+                             submit: { if let id = highlighted ?? ids.first { open(id) } },
+                             cancel: close)
             }
             .padding(12)
             // Just the field until something is typed, like Spotlight.
@@ -55,7 +50,6 @@ struct QuickSwitcherView: View {
         .shadow(radius: 24, y: 8)
         .onExitCommand(perform: close)
         // The best match is highlighted, so Return opens it.
-        .onAppear { isFocused = true }
         .onChange(of: query) { highlighted = matches.first }
     }
 

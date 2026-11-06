@@ -35,8 +35,6 @@ final class WorkspaceModel: Identifiable {
     let unreadMarkers = KeyedStore<String, String>()
     let threads = KeyedStore<ThreadRef, Timeline>()
     let drafts = KeyedStore<String, String>()
-    /// Pinned messages per conversation, loaded when asked for.
-    let pinned = KeyedStore<String, [SlackMessage]>()
     /// Channel names by ID, for mentions.
     private(set) var channelNames: [String: String] = [:]
     /// The last thing that went wrong, shown as an alert.
@@ -386,18 +384,6 @@ final class WorkspaceModel: Identifiable {
         guard typingThrottle.shouldSend(in: channel) else { return }
         let connection = connection
         Task { await connection.sendTyping(in: channel) }
-    }
-
-    func loadPinned(in channel: String) {
-        Task {
-            do {
-                let messages = try await client.pinnedMessages(in: channel)
-                pinned[channel] = messages
-                requestNames(for: messages)
-            } catch {
-                problem = Problem("Couldn't Load Pinned Messages", error)
-            }
-        }
     }
 
     var ownDisplayName: String {

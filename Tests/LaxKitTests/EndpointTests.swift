@@ -160,16 +160,6 @@ struct EndpointTests {
         #expect(try await client.members(of: "G1") == ["U1", "U2", "U3"])
     }
 
-    @Test func pinnedMessagesSkipOtherItems() async throws {
-        StubURLProtocol.reset(["pins.list": [#"""
-            {"ok":true,"items":[
-              {"type":"message","channel":"C1","message":{"ts":"2.0","user":"U1","text":"pinned"}},
-              {"type":"file","file":{"id":"F1"}}
-            ]}
-            """#]])
-        #expect(try await client.pinnedMessages(in: "C1").map(\.text) == ["pinned"])
-    }
-
     @Test func searchReturnsMessagesWithChannels() async throws {
         StubURLProtocol.reset(["search.messages": [#"""
             {"ok":true,"query":"deploy","messages":{"total":2,"matches":[

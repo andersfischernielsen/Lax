@@ -34,7 +34,6 @@
 - [x] Custom emoji and `:shortcodes:`
 - [x] Group DM names
 - [ ] Search: results open the conversation (or thread), but don't scroll to the message
-- [x] Pinned messages
 - [ ] Slash commands and bot buttons
 - [x] Mark as unread: from the message menu (moves the read position back) and the sidebar
 - [x] App icon

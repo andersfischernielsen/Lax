@@ -5,7 +5,6 @@ import SwiftUI
 struct ConversationView: View {
     let workspace: WorkspaceModel
     let conversation: SlackConversation
-    @State private var showsPinned = false
     /// Scrolled to the newest message once; older pages load only after that.
     @State private var isPositioned = false
     @State private var isAtBottom = true
@@ -72,13 +71,6 @@ struct ConversationView: View {
         }
         .navigationTitle(workspace.displayName(of: conversation))
         .navigationSubtitle(conversation.topic ?? "")
-        .toolbar {
-            Button("Pinned Messages", systemImage: "pin") { showsPinned.toggle() }
-                .help("Show pinned messages")
-                .popover(isPresented: $showsPinned) {
-                    PinnedView(workspace: workspace, channel: conversation.id)
-                }
-        }
         .sheet(item: $window.reactingTo) { target in
             EmojiPickerView(customEmoji: workspace.customEmoji, emojiImage: { workspace.emojiImages[$0] },
                             requestImages: workspace.requestEmojiImages) { name in

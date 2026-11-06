@@ -95,12 +95,6 @@ extension SlackAPIClient {
         return response.messages.matches.compactMap(\.value)
     }
 
-    /// Pinned messages, most recently pinned first.
-    public func pinnedMessages(in channel: String) async throws -> [SlackMessage] {
-        let response: PinsResponse = try await call("pins.list", ["channel": channel])
-        return response.items.compactMap(\.value?.message)
-    }
-
     /// Member user IDs of a conversation.
     public func members(of channel: String) async throws -> [String] {
         var all: [String] = []
@@ -186,15 +180,6 @@ private struct SearchResponse: Decodable {
     }
 
     let messages: Matches
-}
-
-private struct PinsResponse: Decodable {
-    /// Pinned files come back without a message; those are skipped.
-    struct Item: Decodable {
-        let message: SlackMessage?
-    }
-
-    let items: [Failable<Item>]
 }
 
 private struct MembersResponse: Decodable {

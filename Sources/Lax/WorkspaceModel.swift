@@ -35,7 +35,8 @@ final class WorkspaceModel: Identifiable {
     /// Read position per conversation as it was when opened; the "New" line goes after it.
     let unreadMarkers = KeyedStore<String, String>()
     let threads = KeyedStore<ThreadRef, Timeline>()
-    let drafts = KeyedStore<String, String>()
+    /// Unsent messages, as rich text: formatting becomes Slack markup when sent.
+    let drafts = KeyedStore<String, AttributedString>()
     /// Channel names by ID, for mentions.
     private(set) var channelNames: [String: String] = [:]
     /// The last thing that went wrong, shown as an alert.
@@ -418,10 +419,11 @@ final class WorkspaceModel: Identifiable {
     /// Sends the draft for a conversation, or for a thread in it.
     func send(in channel: String, thread: String? = nil) {
         let key = thread.map { ThreadRef(channel: channel, ts: $0).draftKey } ?? channel
-        let text = (drafts[key] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        let markup = SlackText.encodedForSending(Autocomplete.encodingMentions(in: text, draftMentions[key] ?? [:]))
-        drafts[key] = ""
+        let text = drafts[key] ?? AttributedString()
+        let written = SlackMarkdown.mrkdwn(from: text).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !written.isEmpty else { return }
+        let markup = SlackText.encodedForSending(Autocomplete.encodingMentions(in: written, draftMentions[key] ?? [:]))
+        drafts[key] = AttributedString()
         draftMentions[key] = nil
         if let command = SlashCommand(markup) {
             Task {

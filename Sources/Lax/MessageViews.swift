@@ -192,25 +192,28 @@ struct AvatarView: View {
 /// The message field, with a status line above it such as who is typing, and suggestions
 /// for the `@`, `#` or `:` word being typed.
 ///
-/// Return sends; Shift- or Option-Return starts a new line. With suggestions showing, ↑/↓
-/// move through them, Return or Tab takes one, and Esc hides them.
+/// Rich text: ⌘B bold, ⌘I italic, ⇧⌘X strikethrough, ⇧⌘C code, sent as Slack markup. Return
+/// sends; Shift- or Option-Return starts a new line. With suggestions showing, ↑/↓ move
+/// through them, Return or Tab takes one, and Esc hides them.
 struct ComposerView<Status: View>: View {
     let placeholder: String
     var identifier = "composer"
-    @Binding var draft: String
+    @Binding var draft: AttributedString
     /// Completions for the word being typed; none unless given.
     var suggest: (Autocomplete.Token) -> [Suggestion] = { _ in [] }
     /// Told about each completion taken, e.g. to send mentions as tokens.
     var accept: (Suggestion) -> Void = { _ in }
     @ViewBuilder var status: Status
     let send: () -> Void
+    @State private var selection = AttributedTextSelection()
     @State private var highlighted = 0
     /// The word whose suggestions were dismissed with Esc.
     @State private var dismissed: Autocomplete.Token?
 
     var body: some View {
+        let plain = String(draft.characters)
         // Completes the word at the end of the draft, where typing happens.
-        let token = Autocomplete.token(in: draft)
+        let token = Autocomplete.token(in: plain)
         let suggestions = token.flatMap { $0 == dismissed ? nil : suggest($0) } ?? []
         VStack(alignment: .leading, spacing: 4) {
             status
@@ -220,14 +223,14 @@ struct ComposerView<Status: View>: View {
             ZStack(alignment: .topLeading) {
                 // Sizes the field to its text, one line up to eight; TextEditor alone fills all
                 // the space it's given.
-                Text(draft.isEmpty ? " " : draft + " ")
+                Text(plain.isEmpty ? " " : plain + " ")
                     .lineLimit(1...8)
                     .hidden()
-                if draft.isEmpty {
+                if plain.isEmpty {
                     // Where TextEditor starts its text: AppKit's standard line padding.
                     Text(placeholder).foregroundStyle(.placeholder).padding(.leading, 5).allowsHitTesting(false)
                 }
-                TextEditor(text: $draft)
+                TextEditor(text: $draft, selection: $selection)
                     .textEditorStyle(.plain)
                     .scrollContentBackground(.hidden)
                     .accessibilityIdentifier(identifier)
@@ -261,6 +264,11 @@ struct ComposerView<Status: View>: View {
                         dismissed = token
                         return .handled
                     }
+                    .onKeyPress(keys: ["b", "i", "x", "c"]) { press in
+                        guard let style = Self.style(for: press) else { return .ignored }
+                        toggle(style)
+                        return .handled
+                    }
             }
             .padding(10)
             .background(RoundedRectangle(cornerRadius: 8).strokeBorder(.separator))
@@ -270,8 +278,42 @@ struct ComposerView<Status: View>: View {
         .padding(.bottom, 12)
     }
 
+    /// ⌘B, ⌘I, ⇧⌘X and ⇧⌘C, as in Slack.
+    private static func style(for press: KeyPress) -> InlinePresentationIntent? {
+        switch (press.characters.lowercased(), press.modifiers) {
+        case ("b", .command): .stronglyEmphasized
+        case ("i", .command): .emphasized
+        case ("x", [.command, .shift]): .strikethrough
+        case ("c", [.command, .shift]): .code
+        default: nil
+        }
+    }
+
+    /// Turns a style on or off for the selection, or for what's typed next at the cursor.
+    private func toggle(_ style: InlinePresentationIntent) {
+        draft.transformAttributes(in: &selection) { attributes in
+            var intent = attributes.inlinePresentationIntent ?? []
+            if intent.contains(style) { intent.remove(style) } else { intent.insert(style) }
+            attributes.inlinePresentationIntent = intent.isEmpty ? nil : intent
+            // How it looks follows from what it means.
+            attributes.font = Self.font(for: intent)
+            attributes.strikethroughStyle = intent.contains(.strikethrough) ? .single : nil
+        }
+    }
+
+    private static func font(for intent: InlinePresentationIntent) -> Font? {
+        guard !intent.isEmpty else { return nil }
+        var font = intent.contains(.code) ? Font.body.monospaced() : .body
+        if intent.contains(.stronglyEmphasized) { font = font.bold() }
+        if intent.contains(.emphasized) { font = font.italic() }
+        return font
+    }
+
+    /// Replaces the word being typed, at the end of the draft, with the suggestion.
     private func take(_ suggestion: Suggestion, for token: Autocomplete.Token) {
-        draft = TextEditing.replacing(token.start..<draft.count, in: draft, with: suggestion.insert + " ").text
+        let start = draft.characters.index(draft.startIndex, offsetBy: min(token.start, draft.characters.count))
+        draft.replaceSubrange(start..<draft.endIndex, with: AttributedString(suggestion.insert + " "))
+        selection = AttributedTextSelection(insertionPoint: draft.endIndex)
         accept(suggestion)
     }
 }
@@ -308,7 +350,7 @@ private struct SuggestionList: View {
 }
 
 extension ComposerView where Status == EmptyView {
-    init(placeholder: String, identifier: String, draft: Binding<String>, send: @escaping () -> Void) {
+    init(placeholder: String, identifier: String, draft: Binding<AttributedString>, send: @escaping () -> Void) {
         self.init(placeholder: placeholder, identifier: identifier, draft: draft, status: { EmptyView() }, send: send)
     }
 }

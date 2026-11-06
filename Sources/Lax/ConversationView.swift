@@ -169,10 +169,10 @@ struct ConversationView: View {
         }
     }
 
-    private var draft: Binding<String> {
-        Binding(get: { workspace.drafts[conversation.id] ?? "" },
+    private var draft: Binding<AttributedString> {
+        Binding(get: { workspace.drafts[conversation.id] ?? AttributedString() },
                 set: { text in
-                    if !text.isEmpty, text != workspace.drafts[conversation.id] {
+                    if !text.characters.isEmpty, text != workspace.drafts[conversation.id] {
                         workspace.userTyped(in: conversation.id)
                     }
                     workspace.drafts[conversation.id] = text

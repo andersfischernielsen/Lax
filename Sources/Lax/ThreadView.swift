@@ -59,10 +59,10 @@ struct ThreadView: View {
         .task { await workspace.loadThread(thread) }
     }
 
-    private var draft: Binding<String> {
-        Binding(get: { workspace.drafts[thread.draftKey] ?? "" },
+    private var draft: Binding<AttributedString> {
+        Binding(get: { workspace.drafts[thread.draftKey] ?? AttributedString() },
                 set: { text in
-                    if !text.isEmpty, text != workspace.drafts[thread.draftKey] {
+                    if !text.characters.isEmpty, text != workspace.drafts[thread.draftKey] {
                         workspace.userTyped(in: thread.channel)
                     }
                     workspace.drafts[thread.draftKey] = text

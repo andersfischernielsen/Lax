@@ -30,6 +30,9 @@ struct SidebarView: View {
             }
             Divider()
             Button("Add Workspace…") { model.beginSignIn() }
+            if let workspace = model.currentWorkspace {
+                Button("Set Display Name…") { workspace.beginEditingDisplayName() }
+            }
             if let account = model.currentWorkspace?.account {
                 Button("Sign Out of \(account.teamName)", role: .destructive) { model.signOut(of: account) }
             }

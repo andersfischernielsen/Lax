@@ -31,6 +31,10 @@ struct ContentView: View {
         }
         .searchable(text: searchQuery, placement: .toolbar, prompt: "Search messages")
         .onSubmit(of: .search) { model.currentWorkspace?.search() }
+        .sheet(isPresented: editingDisplayName) {
+            DisplayNameView(name: displayName, save: { model.currentWorkspace?.saveDisplayName() },
+                            cancel: { model.currentWorkspace?.editingDisplayName = nil })
+        }
         .sheet(item: $model.signIn) { controller in
             SignInView(controller: controller, cancel: model.cancelSignIn)
         }
@@ -47,6 +51,16 @@ struct ContentView: View {
                     model.currentWorkspace?.searchQuery = query
                     if query.isEmpty { model.currentWorkspace?.clearSearch() }
                 })
+    }
+
+    private var editingDisplayName: Binding<Bool> {
+        Binding(get: { model.currentWorkspace?.editingDisplayName != nil },
+                set: { if !$0 { model.currentWorkspace?.editingDisplayName = nil } })
+    }
+
+    private var displayName: Binding<String> {
+        Binding(get: { model.currentWorkspace?.editingDisplayName ?? "" },
+                set: { model.currentWorkspace?.editingDisplayName = $0 })
     }
 
     private var errorBinding: Binding<Bool> {

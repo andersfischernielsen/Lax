@@ -33,6 +33,8 @@ final class WorkspaceModel: Identifiable {
     var searchQuery = ""
     /// Results of the last search; nil when not searching.
     private(set) var searchResults: [SearchResult]?
+    /// The display name being edited, shown in a sheet.
+    var editingDisplayName: String?
     /// A message the reaction picker is open for.
     var reactingTo: ReactionTarget?
     /// A message being edited, shown in a sheet.
@@ -73,6 +75,7 @@ final class WorkspaceModel: Identifiable {
             Task { await loadMutePrefs() },
             Task { await loadCustomEmoji() },
             Task { await listen() },
+            Task { requestUsers([account.userID]) },
         ]
     }
 
@@ -301,6 +304,24 @@ final class WorkspaceModel: Identifiable {
                 requestNames(for: messages)
             } catch {
                 errorMessage = "Couldn't load pinned messages (\(error))."
+            }
+        }
+    }
+
+    func beginEditingDisplayName() {
+        editingDisplayName = users[account.userID]?.displayName ?? ""
+    }
+
+    /// Saves the display name; the profile change arrives as a `user_change` event too.
+    func saveDisplayName() {
+        guard let name = editingDisplayName?.trimmingCharacters(in: .whitespaces) else { return }
+        editingDisplayName = nil
+        Task {
+            do {
+                try await client.setDisplayName(name)
+                if let user = try? await client.user(id: account.userID) { users[user.id] = user }
+            } catch {
+                errorMessage = "Couldn't change your display name (\(error))."
             }
         }
     }

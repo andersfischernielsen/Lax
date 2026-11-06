@@ -162,8 +162,8 @@ private struct NewMessagesDivider: View {
     }
 }
 
-private extension View {
-    /// Edge to edge, without separators; rows pad themselves.
+extension View {
+    /// A message list row: edge to edge, without separators; rows pad themselves.
     func messageListRow(selectable: Bool) -> some View {
         listRowInsets(EdgeInsets(top: 1, leading: 0, bottom: 1, trailing: 0))
             .listRowSeparator(.hidden)

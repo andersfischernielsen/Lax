@@ -1,3 +1,4 @@
+import AppKit
 import LaxKit
 import SwiftUI
 
@@ -5,6 +6,7 @@ import SwiftUI
 struct ThreadView: View {
     let workspace: WorkspaceModel
     let thread: ThreadRef
+    @State private var selectedMessage: String?
 
     var body: some View {
         let messages = workspace.threads[thread]?.messages ?? []
@@ -13,24 +15,37 @@ struct ThreadView: View {
             if messages.isEmpty {
                 ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 0) {
+                // A native list like the conversation's: arrows move through the replies,
+                // ⌘C copies the selected one.
+                ScrollViewReader { proxy in
+                    List(selection: $selectedMessage) {
                         ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
                             MessageItem(workspace: workspace, channel: thread.channel, message: message,
                                         showsHeader: index <= 1 || MessageItem.showsHeader(messages, at: index),
                                         showsThreadLink: false)
+                                .messageListRow(selectable: true)
+                                .tag(message.ts)
+                                .id(message.ts)
                             if index == 0, messages.count > 1 {
                                 Text(messages.count == 2 ? "1 reply" : "\(messages.count - 1) replies")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                     .padding(.horizontal, 16)
-                                    .padding(.top, 10)
+                                    .padding(.vertical, 4)
+                                    .messageListRow(selectable: false)
                             }
                         }
                     }
-                    .padding(.vertical, 8)
+                    .listStyle(.plain)
+                    .onCopyCommand {
+                        guard let message = messages.first(where: { $0.ts == selectedMessage }) else { return [] }
+                        return [NSItemProvider(object: workspace.plainText(of: message) as NSString)]
+                    }
+                    // Open at the newest reply, and follow new ones.
+                    .onChange(of: messages.last?.ts, initial: true) { _, newest in
+                        if let newest { proxy.scrollTo(newest, anchor: .bottom) }
+                    }
                 }
-                .defaultScrollAnchor(.bottom)
             }
 
             ComposerView(placeholder: "Reply…", draft: draft) {

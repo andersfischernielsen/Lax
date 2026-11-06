@@ -8,7 +8,6 @@ struct ThreadView: View {
     @Environment(WindowModel.self) private var window
 
     var body: some View {
-        let formatter = workspace.textFormatter()
         let messages = workspace.threads[thread]?.messages ?? []
 
         VStack(spacing: 0) {
@@ -19,7 +18,6 @@ struct ThreadView: View {
                     LazyVStack(alignment: .leading, spacing: 0) {
                         ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
                             MessageItem(workspace: workspace, channel: thread.channel, message: message,
-                                        formatter: formatter,
                                         showsHeader: index <= 1 || MessageItem.showsHeader(messages, at: index),
                                         showsThreadLink: false)
                             if index == 0, messages.count > 1 {

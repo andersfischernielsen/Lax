@@ -8,7 +8,6 @@ struct SearchResultsView: View {
     @Environment(WindowModel.self) private var window
 
     var body: some View {
-        let formatter = workspace.textFormatter()
         if results.isEmpty {
             ContentUnavailableView.search(text: window.searchQuery)
         } else {
@@ -22,7 +21,7 @@ struct SearchResultsView: View {
                                 .padding(.horizontal, 16)
                                 .padding(.top, 12)
                             MessageItem(workspace: workspace, channel: result.channelID, message: result.message,
-                                        formatter: formatter, showsHeader: true, showsThreadLink: false)
+                                        showsHeader: true, showsThreadLink: false)
                             Text(result.message.date, format: .dateTime.day().month().year())
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)

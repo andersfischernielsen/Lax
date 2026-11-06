@@ -6,7 +6,7 @@ import SwiftUI
 struct AttachmentView: View {
     let attachment: SlackAttachment
     let formatter: SlackText
-    let emojiImages: [String: NSImage]
+    let emojiImage: (String) -> NSImage?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -39,7 +39,7 @@ struct AttachmentView: View {
     }
 
     private func rich(_ markup: String) -> Text {
-        RichText.text(MessageStyle.styled(formatter.attributed(markup)), emojiImages: emojiImages)
+        RichText.text(MessageStyle.styled(formatter.attributed(markup)), emojiImage: emojiImage)
     }
 
     private var barColor: Color {

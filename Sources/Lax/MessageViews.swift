@@ -1,3 +1,4 @@
+import AppKit
 import LaxKit
 import SwiftUI
 
@@ -6,7 +7,6 @@ struct MessageItem: View {
     let workspace: WorkspaceModel
     let channel: String
     let message: SlackMessage
-    let formatter: SlackText
     let showsHeader: Bool
     /// False inside a thread, where the replies are already on screen.
     var showsThreadLink = true
@@ -21,24 +21,29 @@ struct MessageItem: View {
     ]
 
     var body: some View {
+        // Built here rather than passed in: the row's inputs stay comparable, so SwiftUI
+        // skips rows that haven't changed.
+        let formatter = workspace.textFormatter()
         let text = MessageStyle.styled(formatter.attributed(message.markup))
+        let emojiImage = { (name: String) in workspace.emojiImages[name] }
         MessageRow(
             message: message,
             author: workspace.authorName(of: message),
-            avatarURL: message.userID.flatMap { workspace.users[$0] }?.avatarURL,
-            text: RichText.text(text, emojiImages: workspace.emojiImages),
+            avatar: message.userID.flatMap { workspace.users[$0] }?.avatarURL
+                .map { AvatarView(url: $0, workspace: workspace) },
+            text: RichText.text(text, emojiImage: emojiImage),
             showsHeader: showsHeader,
             isSystem: message.subtype.map(Self.systemSubtypes.contains) ?? false
         ) {
             ForEach(Array(message.attachments.enumerated()), id: \.offset) { _, attachment in
-                AttachmentView(attachment: attachment, formatter: formatter, emojiImages: workspace.emojiImages)
+                AttachmentView(attachment: attachment, formatter: formatter, emojiImage: emojiImage)
             }
             if !message.files.isEmpty {
                 FilesView(files: message.files, loadImage: workspace.image(at:))
             }
             if !message.reactions.isEmpty {
                 ReactionsView(reactions: message.reactions, ownUserID: workspace.account.userID,
-                              userName: workspace.userName, emojiImages: workspace.emojiImages) { name in
+                              userName: workspace.userName, emojiImage: emojiImage) { name in
                     workspace.toggleReaction(name, on: message, in: channel)
                 }
             }
@@ -58,7 +63,7 @@ struct MessageItem: View {
         } message: {
             Text("It's removed for everyone in the conversation.")
         }
-        .onAppear { workspace.requestEmojiImages(customEmojiNames(in: text)) }
+        .onAppear { workspace.requestEmojiImages(customEmojiNames(in: text, formatter: formatter)) }
     }
 
     @ViewBuilder private var menu: some View {
@@ -85,7 +90,7 @@ struct MessageItem: View {
     }
 
     /// Custom emoji in the message, its attachments and its reactions.
-    private func customEmojiNames(in text: AttributedString) -> Set<String> {
+    private func customEmojiNames(in text: AttributedString, formatter: SlackText) -> Set<String> {
         let attachmentTexts = message.attachments.flatMap { [$0.pretext, $0.body].compactMap { $0 } }
         return attachmentTexts.reduce(into: RichText.customEmojiNames(in: text)) { names, markup in
             names.formUnion(RichText.customEmojiNames(in: formatter.attributed(markup)))
@@ -105,7 +110,7 @@ struct MessageItem: View {
 struct MessageRow<Footer: View>: View {
     let message: SlackMessage
     let author: String
-    let avatarURL: URL?
+    let avatar: AvatarView?
     let text: Text
     let showsHeader: Bool
     let isSystem: Bool
@@ -114,7 +119,7 @@ struct MessageRow<Footer: View>: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             if showsHeader {
-                AvatarView(url: avatarURL)
+                if let avatar { avatar } else { AvatarView.placeholder }
             } else {
                 Color.clear.frame(width: AvatarView.size, height: 1)
             }
@@ -141,37 +146,43 @@ struct MessageRow<Footer: View>: View {
     }
 }
 
+/// A profile picture, downloaded once per session and kept in memory.
 struct AvatarView: View {
     static let size: CGFloat = 36
-    let url: URL?
+    static var placeholder: some View {
+        RoundedRectangle(cornerRadius: 8).fill(.quaternary).frame(width: size, height: size)
+    }
+
+    let url: URL
+    let workspace: WorkspaceModel
+    @State private var loaded: (url: URL, image: NSImage)?
 
     var body: some View {
-        AsyncImage(url: url) { image in
-            image.resizable().scaledToFill()
-        } placeholder: {
-            Rectangle().fill(.quaternary)
+        // From the cache straight away when it's there, so reused rows don't flash.
+        if let image = loaded.flatMap({ $0.url == url ? $0.image : nil }) ?? workspace.cachedImage(at: url) {
+            Image(nsImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(width: Self.size, height: Self.size)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        } else {
+            Self.placeholder.task(id: url) {
+                if let image = await workspace.image(at: url) { loaded = (url, image) }
+            }
         }
-        .frame(width: Self.size, height: Self.size)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 
-/// The message field, with a line above it for who is typing.
-struct ComposerView: View {
+/// The message field, with a status line above it such as who is typing.
+struct ComposerView<Status: View>: View {
     let placeholder: String
     @Binding var draft: String
-    /// Typing summary at a moment, e.g. "Jane is typing…".
-    var typing: (Date) -> String? = { _ in nil }
+    @ViewBuilder var status: Status
     let send: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            // Re-evaluated every second so typing entries disappear when they expire.
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                Text(typing(context.date) ?? " ")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            status
             TextField(placeholder, text: $draft, axis: .vertical)
                 .textFieldStyle(.plain)
                 .lineLimit(1...8)
@@ -181,5 +192,27 @@ struct ComposerView: View {
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 12)
+    }
+}
+
+extension ComposerView where Status == EmptyView {
+    init(placeholder: String, draft: Binding<String>, send: @escaping () -> Void) {
+        self.init(placeholder: placeholder, draft: draft, status: { EmptyView() }, send: send)
+    }
+}
+
+/// "Jane is typing…" under a conversation, redrawn only when someone starts or stops.
+struct TypingIndicator: View {
+    let workspace: WorkspaceModel
+    let channel: String
+
+    var body: some View {
+        let tracker = workspace.typing[channel] ?? TypingTracker()
+        TimelineView(.explicit(tracker.expiryDates(in: channel))) { context in
+            let names = tracker.typingUserIDs(in: channel, at: context.date).map { workspace.userName($0) ?? "Someone" }
+            Text(TypingTracker.summary(names) ?? " ")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 }

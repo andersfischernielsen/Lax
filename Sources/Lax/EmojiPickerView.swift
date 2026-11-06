@@ -5,7 +5,7 @@ import SwiftUI
 /// A searchable grid of standard and custom emoji.
 struct EmojiPickerView: View {
     let customEmoji: [String: SlackEmoji]
-    let emojiImages: [String: NSImage]
+    let emojiImage: (String) -> NSImage?
     let requestImages: (Set<String>) -> Void
     let pick: (String) -> Void
     let cancel: () -> Void
@@ -41,8 +41,8 @@ struct EmojiPickerView: View {
         Group {
             if let character = Emoji.character(for: name) {
                 Text(character).font(.title2)
-            } else if let image = emojiImages[name] {
-                Image(nsImage: RichText.inline(image, height: 24))
+            } else if let image = emojiImage(name) {
+                Image(nsImage: image).resizable().scaledToFit().frame(height: 24)
             } else {
                 RoundedRectangle(cornerRadius: 4).fill(.quaternary).frame(width: 24, height: 24)
             }

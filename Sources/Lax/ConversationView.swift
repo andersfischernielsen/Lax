@@ -13,7 +13,6 @@ struct ConversationView: View {
 
     var body: some View {
         @Bindable var window = window
-        let formatter = workspace.textFormatter()
         let timeline = workspace.timelines[conversation.id]
         let messages = timeline?.messages ?? []
         let firstUnread = workspace.unreadMarkers[conversation.id].flatMap {
@@ -39,7 +38,6 @@ struct ConversationView: View {
                     if isNewDay { DayDivider(date: message.date).messageListRow(selectable: false) }
                     if isFirstUnread { NewMessagesDivider().messageListRow(selectable: false) }
                     MessageItem(workspace: workspace, channel: conversation.id, message: message,
-                                formatter: formatter,
                                 showsHeader: isNewDay || isFirstUnread || MessageItem.showsHeader(messages, at: index))
                         .messageListRow(selectable: true)
                         .tag(message.ts)
@@ -47,6 +45,7 @@ struct ConversationView: View {
                 }
             }
             .listStyle(.plain)
+            .overlay { if timeline == nil { ProgressView() } }
             .onScrollGeometryChange(for: Bool.self) { geometry in
                 geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height - 60
             } action: { _, atBottom in
@@ -60,8 +59,9 @@ struct ConversationView: View {
             }
             }
 
-            ComposerView(placeholder: "Message \(workspace.displayName(of: conversation))", draft: draft,
-                         typing: typingSummary) {
+            ComposerView(placeholder: "Message \(workspace.displayName(of: conversation))", draft: draft) {
+                TypingIndicator(workspace: workspace, channel: conversation.id)
+            } send: {
                 workspace.send(in: conversation.id)
             }
         }
@@ -75,7 +75,7 @@ struct ConversationView: View {
                 }
         }
         .sheet(item: $window.reactingTo) { target in
-            EmojiPickerView(customEmoji: workspace.customEmoji, emojiImages: workspace.emojiImages,
+            EmojiPickerView(customEmoji: workspace.customEmoji, emojiImage: { workspace.emojiImages[$0] },
                             requestImages: workspace.requestEmojiImages) { name in
                 window.reactingTo = nil
                 let alreadyMine = target.message.reactions.first { $0.name == name }?
@@ -126,12 +126,6 @@ struct ConversationView: View {
 
     private var editText: Binding<String> {
         Binding(get: { window.editing?.text ?? "" }, set: { window.editing?.text = $0 })
-    }
-
-    private func typingSummary(at date: Date) -> String? {
-        let names = workspace.typing.typingUserIDs(in: conversation.id, at: date)
-            .map { workspace.userName($0) ?? "Someone" }
-        return TypingTracker.summary(names)
     }
 }
 

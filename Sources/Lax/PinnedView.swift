@@ -7,7 +7,6 @@ struct PinnedView: View {
     let channel: String
 
     var body: some View {
-        let formatter = workspace.textFormatter()
         Group {
             if let messages = workspace.pinned[channel] {
                 if messages.isEmpty {
@@ -17,7 +16,7 @@ struct PinnedView: View {
                         LazyVStack(alignment: .leading, spacing: 0) {
                             ForEach(messages) { message in
                                 MessageItem(workspace: workspace, channel: channel, message: message,
-                                            formatter: formatter, showsHeader: true)
+                                            showsHeader: true)
                                 Divider().padding(.top, 10)
                             }
                         }

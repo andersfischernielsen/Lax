@@ -7,7 +7,7 @@ struct ReactionsView: View {
     let reactions: [SlackReaction]
     let ownUserID: String
     let userName: (String) -> String?
-    let emojiImages: [String: NSImage]
+    let emojiImage: (String) -> NSImage?
     let toggle: (String) -> Void
 
     var body: some View {
@@ -34,8 +34,8 @@ struct ReactionsView: View {
     @ViewBuilder private func emoji(_ name: String) -> some View {
         if let character = Emoji.character(for: name) {
             Text(character)
-        } else if let image = emojiImages[name] {
-            Image(nsImage: RichText.inline(image, height: 16))
+        } else if let image = emojiImage(name) {
+            Image(nsImage: image).resizable().scaledToFit().frame(height: 16)
         } else {
             Text(":\(name):").foregroundStyle(.secondary)
         }

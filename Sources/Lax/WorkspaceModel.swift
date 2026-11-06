@@ -7,26 +7,30 @@ import Observation
 final class WorkspaceModel: Identifiable {
     let account: SlackAccount
     private(set) var conversations: [SlackConversation] = []
-    private(set) var users: [String: SlackUser] = [:]
+    // Per-key stores: a view redraws only for the entries it reads.
+    let users = KeyedStore<String, SlackUser>()
     private(set) var userGroupHandles: [String: String] = [:]
     /// Members of group DMs, for naming them.
     private(set) var groupMembers: [String: [String]] = [:]
     private(set) var customEmoji: [String: SlackEmoji] = [:]
     /// Custom emoji images by name, sized for inline text.
-    private(set) var emojiImages: [String: NSImage] = [:]
-    private(set) var timelines: [String: Timeline] = [:]
-    private(set) var typing = TypingTracker()
+    let emojiImages = KeyedStore<String, NSImage>()
+    let timelines = KeyedStore<String, Timeline>()
+    /// Who is typing, per conversation.
+    let typing = KeyedStore<String, TypingTracker>()
     private(set) var unread = UnreadState()
     /// Muted conversations, derived from `mutePrefs`.
     private(set) var muted: Set<String> = []
     private(set) var status: RealTimeUpdate.Status = .connecting
     private(set) var loadingHistory: Set<String> = []
     /// Read position per conversation as it was when opened; the "New" line goes after it.
-    private(set) var unreadMarkers: [String: String] = [:]
-    private(set) var threads: [ThreadRef: Timeline] = [:]
-    var drafts: [String: String] = [:]
+    let unreadMarkers = KeyedStore<String, String>()
+    let threads = KeyedStore<ThreadRef, Timeline>()
+    let drafts = KeyedStore<String, String>()
     /// Pinned messages per conversation, loaded when asked for.
-    private(set) var pinned: [String: [SlackMessage]] = [:]
+    let pinned = KeyedStore<String, [SlackMessage]>()
+    /// Channel names by ID, for mentions.
+    private(set) var channelNames: [String: String] = [:]
     var errorMessage: String?
 
     @ObservationIgnored private let client: SlackAPIClient
@@ -133,15 +137,13 @@ final class WorkspaceModel: Identifiable {
         message.userID.flatMap(userName) ?? message.username ?? message.userID ?? "Unknown"
     }
 
-    /// A formatter that resolves mentions with the names known right now.
+    /// A formatter that looks names up as it goes, so a view using it depends only on
+    /// the names its text mentions. For use on the main actor, in views.
     func textFormatter() -> SlackText {
-        let userNames = users.mapValues(\.preferredName)
-        let channelNames = Dictionary(conversations.compactMap { c in c.name.map { (c.id, $0) } },
-                                      uniquingKeysWith: { first, _ in first })
-        let groups = userGroupHandles
-        let emoji = customEmoji
-        return SlackText(userName: { userNames[$0] }, channelName: { channelNames[$0] },
-                         subteamHandle: { groups[$0] }, customEmoji: { emoji[$0] })
+        SlackText(userName: { id in MainActor.assumeIsolated { self.userName(id) } },
+                  channelName: { id in MainActor.assumeIsolated { self.channelNames[id] } },
+                  subteamHandle: { id in MainActor.assumeIsolated { self.userGroupHandles[id] } },
+                  customEmoji: { name in MainActor.assumeIsolated { self.customEmoji[name] } })
     }
 
     // MARK: - Loading
@@ -153,7 +155,9 @@ final class WorkspaceModel: Identifiable {
             defer { loadingHistory.remove(channel) }
             do {
                 let page = try await client.history(channel: channel, before: timelines[channel]?.oldestTS)
-                timelines[channel, default: Timeline()].addOlder(page)
+                var timeline = timelines[channel] ?? Timeline()
+                timeline.addOlder(page)
+                timelines[channel] = timeline
                 requestNames(for: page.messages)
                 markReadIfVisible(channel)
             } catch {
@@ -165,6 +169,8 @@ final class WorkspaceModel: Identifiable {
     private func loadConversations() async {
         do {
             conversations = try await client.conversations()
+            channelNames = Dictionary(conversations.compactMap { c in c.name.map { (c.id, $0) } },
+                                      uniquingKeysWith: { first, _ in first })
             requestUsers(Set(conversations.compactMap(\.userID)))
             await loadGroupMembers()
         } catch {
@@ -202,7 +208,7 @@ final class WorkspaceModel: Identifiable {
         requestedEmoji.formUnion(missing)
         for name in missing {
             guard case .image(let url) = customEmoji[name] else { continue }
-            Task { emojiImages[name] = await image(at: url) }
+            Task { emojiImages[name] = await image(at: url).map { RichText.inline($0) } }
         }
     }
 
@@ -397,13 +403,15 @@ final class WorkspaceModel: Identifiable {
 
     /// Applies a change to a conversation and to any of its threads that are loaded.
     private func update(_ channel: String, _ change: (inout Timeline) -> Void) {
-        if var timeline = timelines[channel] {
-            change(&timeline)
-            timelines[channel] = timeline
-        }
+        timelines.update(channel, change)
         for ref in threads.keys where ref.channel == channel {
-            change(&threads[ref]!)
+            threads.update(ref, change)
         }
+    }
+
+    /// An image already downloaded, without waiting.
+    func cachedImage(at url: URL) -> NSImage? {
+        images.object(forKey: url as NSURL)
     }
 
     /// A Slack-hosted image, downloaded with the session cookie and kept in memory.
@@ -445,7 +453,7 @@ final class WorkspaceModel: Identifiable {
         case .message(let channel, let message):
             // Unloaded conversations fetch fresh history when opened.
             update(channel) { _ = $0.upsert(message) }
-            if let user = message.userID { typing.clear(userID: user, in: channel) }
+            if let user = message.userID { typing.update(channel) { $0.clear(userID: user, in: channel) } }
             if let conversation = conversations.first(where: { $0.id == channel }) {
                 let isOpen = visible[channel] != nil && NSApplication.shared.isActive
                 unread.received(message, in: conversation, ownUserID: account.userID, isOpen: isOpen)
@@ -465,7 +473,9 @@ final class WorkspaceModel: Identifiable {
         case .messageDeleted(let channel, let ts):
             update(channel) { $0.remove(ts: ts) }
         case .userTyping(let channel, let user):
-            typing.record(userID: user, in: channel)
+            var tracker = typing[channel] ?? TypingTracker()
+            tracker.record(userID: user, in: channel)
+            typing[channel] = tracker
             requestUsers([user])
         case .other("emoji_changed"):
             requestedEmoji = []

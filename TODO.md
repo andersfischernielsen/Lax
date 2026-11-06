@@ -20,6 +20,8 @@
 - [ ] Video calls and screen sharing (huddles) — last
 
 
+- [ ] Passkey 2FA at sign-in. macOS doesn't allow passkeys in an embedded web view
+      for apps that aren't browsers, so this needs sign-in through the system browser.
 - [ ] Threads (reply counts show, but threads can't be opened)
 - [ ] Reactions
 - [ ] Images and file attachments

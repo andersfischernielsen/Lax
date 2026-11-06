@@ -115,3 +115,14 @@ private func runs(_ attributed: AttributedString) -> [(String, InlinePresentatio
     #expect(editable == "a < b & <@U1> <https://x.io|docs>")
     #expect(SlackText.encodedForSending(editable) == markup)
 }
+
+@Test func pickerNamesRankPrefixMatchesFirst() {
+    let custom: [String: SlackEmoji] = ["party-parrot": .image(URL(string: "https://emoji.slack-edge.com/p.gif")!)]
+    let names = Emoji.pickerNames(matching: "par", custom: custom)
+    #expect(names.contains("party-parrot"))
+    #expect(names.first?.hasPrefix("par") == true)
+    #expect(!Emoji.pickerNames(matching: "", custom: [:]).contains("skin-tone-2"))
+    // One name per emoji: "+1" and "thumbsup" are the same character.
+    let all = Emoji.pickerNames(matching: "", custom: [:])
+    #expect(!(all.contains("+1") && all.contains("thumbsup")))
+}

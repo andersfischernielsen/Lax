@@ -52,3 +52,23 @@ extension SlackAPIClient {
 private struct EmojiListResponse: Decodable {
     let emoji: [String: String]
 }
+
+extension Emoji {
+    /// Shortcode names for a picker: standard names (one per emoji) and custom ones,
+    /// filtered by `query`, names starting with it first.
+    public static func pickerNames(matching query: String, custom: [String: SlackEmoji]) -> [String] {
+        let query = query.lowercased().trimmingCharacters(in: .whitespaces)
+        var seen: Set<String> = []
+        let standard = shortcodes.keys.sorted().filter { name in
+            guard !name.hasPrefix("skin-tone"), let character = shortcodes[name] else { return false }
+            return seen.insert(character).inserted
+        }
+        let customImages = custom.compactMap { name, emoji -> String? in
+            if case .image = emoji { name } else { nil }
+        }.sorted()
+        let all = standard + customImages
+        guard !query.isEmpty else { return all }
+        let matches = all.filter { $0.contains(query) }
+        return matches.filter { $0.hasPrefix(query) } + matches.filter { !$0.hasPrefix(query) }
+    }
+}

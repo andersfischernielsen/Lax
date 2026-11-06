@@ -69,6 +69,16 @@ private func message(_ ts: String, _ text: String = "", thread: String? = nil, s
     #expect(tracker.typingUserIDs(in: "C1", at: start.addingTimeInterval(3)) == ["U1"])
 }
 
+@Test func typingExpiryDatesFollowLastSeen() {
+    var tracker = TypingTracker()
+    let start = Date(timeIntervalSince1970: 1000)
+    tracker.record(userID: "U2", in: "C1", at: start.addingTimeInterval(2))
+    tracker.record(userID: "U1", in: "C1", at: start)
+    tracker.record(userID: "U3", in: "C2", at: start)
+    #expect(tracker.expiryDates(in: "C1") == [start.addingTimeInterval(6), start.addingTimeInterval(8)])
+    #expect(tracker.expiryDates(in: "C9").isEmpty)
+}
+
 @Test func typingSummaries() {
     #expect(TypingTracker.summary([]) == nil)
     #expect(TypingTracker.summary(["Jane"]) == "Jane is typing…")

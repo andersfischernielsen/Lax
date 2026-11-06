@@ -25,6 +25,11 @@ public struct TypingTracker: Equatable, Sendable {
             .map(\.key)
     }
 
+    /// When entries expire: the moments the typing line needs redrawing.
+    public func expiryDates(in channel: String) -> [Date] {
+        (lastSeen[channel] ?? [:]).values.map { $0.addingTimeInterval(Self.expiry) }.sorted()
+    }
+
     /// "Jane is typing…", "Jane and Bob are typing…", "Several people are typing…".
     public static func summary(_ names: [String]) -> String? {
         switch names.count {

@@ -15,13 +15,15 @@ struct LaxApp: App {
         }
         let model = AppModel()
         model.load()
-        model.showAttentionInDock()
         _model = State(initialValue: model)
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView(model: model)
+                // Not before: setting the Dock badge before SwiftUI opens its first window
+                // (even in applicationDidFinishLaunching) stops that window from opening.
+                .task { model.startShowingAttentionInDock() }
         }
         .commands {
             WorkspaceCommands(model: model)

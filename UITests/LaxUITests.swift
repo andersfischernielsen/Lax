@@ -161,6 +161,11 @@ final class LaxUITests: XCTestCase {
     @discardableResult
     private func expect(_ element: XCUIElement, _ what: String, timeout: TimeInterval = 5) -> XCUIElement {
         let appeared = element.waitForExistence(timeout: timeout)
+        if !appeared {
+            // What was on screen instead, in the log and attached to the result.
+            print(app.debugDescription)
+            add(XCTAttachment(string: app.debugDescription))
+        }
         XCTAssertTrue(appeared, "Expected: \(what)")
         return element
     }

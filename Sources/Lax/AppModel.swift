@@ -30,8 +30,16 @@ final class AppModel {
             mentionsOnly: dockDot == .mentions)
     }
 
-    /// Keeps the Dock badge current, with or without windows open.
-    func showAttentionInDock() {
+    @ObservationIgnored private var showsAttentionInDock = false
+
+    /// Keeps the Dock badge current from now on, with or without windows open.
+    func startShowingAttentionInDock() {
+        guard !showsAttentionInDock else { return }
+        showsAttentionInDock = true
+        showAttentionInDock()
+    }
+
+    private func showAttentionInDock() {
         NSApplication.shared.dockTile.badgeLabel = withObservationTracking {
             dockBadge
         } onChange: { [weak self] in

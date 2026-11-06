@@ -194,7 +194,7 @@ private struct ConversationRow: View {
                 if isMuted { Image(systemName: "bell.slash").font(.caption2).accessibilityLabel("Muted") }
             }
         } icon: {
-            Image(systemName: icon(for: conversation.kind))
+            Image(systemName: conversation.kind.systemImage)
         }
         .fontWeight(isHighlighted ? .semibold : .regular)
         .foregroundStyle(isHighlighted ? AnyShapeStyle(.primary)
@@ -202,15 +202,6 @@ private struct ConversationRow: View {
         .badge(counts.mentions)
         .contextMenu {
             Button(isMuted ? "Unmute" : "Mute") { workspace.setMuted(!isMuted, id) }
-        }
-    }
-
-    private func icon(for kind: SlackConversation.Kind) -> String {
-        switch kind {
-        case .channel: "number"
-        case .privateChannel: "lock"
-        case .directMessage: "person"
-        case .groupDirectMessage: "person.2"
         }
     }
 }
@@ -235,6 +226,17 @@ private struct ConnectionStatusView: View {
         case .connecting: "Connecting…"
         case .waiting(let delay): "Offline. Retrying in \(delay.components.seconds) s…"
         case .signedOut: "Slack ended this session. Sign in again from the workspace menu."
+        }
+    }
+}
+
+extension SlackConversation.Kind {
+    var systemImage: String {
+        switch self {
+        case .channel: "number"
+        case .privateChannel: "lock"
+        case .directMessage: "person"
+        case .groupDirectMessage: "person.2"
         }
     }
 }

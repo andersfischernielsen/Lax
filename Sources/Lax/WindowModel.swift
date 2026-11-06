@@ -36,6 +36,7 @@ final class WindowModel {
     var followedThread: ThreadRef?
     /// The thread in the inspector; the inspector can be open without one.
     var thread: ThreadRef?
+    var showsQuickSwitcher = false
     var showsInspector = false {
         // The highlight stands for what the inspector shows; hidden, nothing is shown.
         didSet { if !showsInspector { selectedMessage = nil } }

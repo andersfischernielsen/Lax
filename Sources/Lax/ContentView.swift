@@ -66,6 +66,22 @@ struct ContentView: View {
                     .help(window.showsInspector ? "Hide the thread" : "Show the thread")
             }
         }
+        .overlay(alignment: .top) {
+            if window.showsQuickSwitcher, let workspace {
+                ZStack(alignment: .top) {
+                    // A click beside the panel closes it, as with Spotlight.
+                    Color.clear.contentShape(Rectangle()).onTapGesture { window.showsQuickSwitcher = false }
+                    QuickSwitcherView(workspace: workspace) { id in
+                        window.showsQuickSwitcher = false
+                        if window.area == .threads { window.area = .home }
+                        window.select(id)
+                    } close: {
+                        window.showsQuickSwitcher = false
+                    }
+                    .padding(.top, 80)
+                }
+            }
+        }
         .environment(window)
         .focusedSceneValue(window)
         .searchable(text: $window.searchQuery, placement: .toolbar, prompt: "Search messages")

@@ -39,7 +39,7 @@ struct MessageItem: View {
                 AttachmentView(attachment: attachment, formatter: formatter, emojiImage: emojiImage)
             }
             if !message.files.isEmpty {
-                FilesView(files: message.files, loadImage: workspace.image(at:))
+                FilesView(files: message.files, loadImage: workspace.image(at:), playerItem: workspace.playerItem(for:))
             }
             if !message.reactions.isEmpty {
                 ReactionsView(reactions: message.reactions, ownUserID: workspace.account.userID,

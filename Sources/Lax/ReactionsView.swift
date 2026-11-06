@@ -37,7 +37,7 @@ struct ReactionsView: View {
         if let character = Emoji.character(for: name) {
             Text(character)
         } else if let image = emojiImage(name) {
-            Image(nsImage: image).resizable().scaledToFit().frame(height: 16)
+            EmojiImage(image: image, height: 16)
         } else {
             Text(":\(name):").foregroundStyle(.secondary)
         }

@@ -43,7 +43,7 @@ struct EmojiPickerView: View {
             if let character = Emoji.character(for: name) {
                 Text(character).font(.title2)
             } else if let image = emojiImage(name) {
-                Image(nsImage: image).resizable().scaledToFit().frame(height: 24)
+                EmojiImage(image: image, height: 24)
             } else {
                 RoundedRectangle(cornerRadius: 4).fill(.quaternary).frame(width: 24, height: 24)
             }

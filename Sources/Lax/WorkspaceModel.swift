@@ -1,4 +1,5 @@
 import AppKit
+import AVFoundation
 import LaxKit
 import Observation
 
@@ -633,6 +634,13 @@ final class WorkspaceModel: Identifiable {
         for ref in threads.keys where ref.channel == channel {
             threads.update(ref, change)
         }
+    }
+
+    /// A player item for a Slack-hosted video, sending the session cookie; nil for other hosts.
+    func playerItem(for url: URL) -> AVPlayerItem? {
+        guard let headers = client.fileHeaders(for: url) else { return nil }
+        // Undocumented but long-standing: how AVFoundation is given request headers.
+        return AVPlayerItem(asset: AVURLAsset(url: url, options: ["AVURLAssetHTTPHeaderFieldsKey": headers]))
     }
 
     /// An image already downloaded, without waiting.

@@ -45,6 +45,20 @@ public struct SlackConversation: Decodable, Hashable, Identifiable, Sendable {
         }
     }
 
+    /// Sidebar name: `#general`, the other person for a DM, member handles for a group DM.
+    public func displayName(userName: (String) -> String?) -> String {
+        switch kind {
+        case .channel, .privateChannel:
+            return "#" + (name ?? id)
+        case .directMessage:
+            return userID.flatMap(userName) ?? userID ?? id
+        case .groupDirectMessage:
+            // Slack names these `mpdm-alice--bob--carol-1`.
+            guard let name, let members = name.wholeMatch(of: /mpdm-(.+)-\d+/)?.1 else { return name ?? id }
+            return members.split(separator: "--").joined(separator: ", ")
+        }
+    }
+
     private enum Keys: String, CodingKey {
         case id, name, user, topic
         case isArchived = "is_archived"

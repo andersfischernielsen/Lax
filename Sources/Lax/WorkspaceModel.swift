@@ -43,6 +43,14 @@ final class WorkspaceModel: Identifiable {
     @ObservationIgnored private let images = NSCache<NSURL, NSImage>()
     @ObservationIgnored private var mutePrefs = MutePrefs()
     @ObservationIgnored private var requestedEmoji: Set<String> = []
+    @ObservationIgnored private lazy var formattedTexts = FormattedTextCache { [unowned self] lookup in
+        switch lookup {
+        case .user(let id): .name(userName(id))
+        case .channel(let id): .name(channelNames[id])
+        case .group(let id): .name(userGroupHandles[id])
+        case .emoji(let name): .emoji(customEmoji[name])
+        }
+    }
     /// How many windows show each conversation; those are kept read.
     @ObservationIgnored private var visible: [String: Int] = [:]
 
@@ -144,6 +152,11 @@ final class WorkspaceModel: Identifiable {
                   channelName: { id in MainActor.assumeIsolated { self.channelNames[id] } },
                   subteamHandle: { id in MainActor.assumeIsolated { self.userGroupHandles[id] } },
                   customEmoji: { name in MainActor.assumeIsolated { self.customEmoji[name] } })
+    }
+
+    /// A message's text, formatted and styled, from the cache when nothing it shows changed.
+    func formattedText(_ markup: String) -> AttributedString {
+        formattedTexts.text(for: markup) { MessageStyle.styled($0.attributed(markup)) }
     }
 
     // MARK: - Loading

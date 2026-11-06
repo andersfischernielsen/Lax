@@ -24,7 +24,7 @@ struct MessageItem: View {
         // Built here rather than passed in: the row's inputs stay comparable, so SwiftUI
         // skips rows that haven't changed.
         let formatter = workspace.textFormatter()
-        let text = MessageStyle.styled(formatter.attributed(message.markup))
+        let text = workspace.formattedText(message.markup)
         let emojiImage = { (name: String) in workspace.emojiImages[name] }
         MessageRow(
             message: message,

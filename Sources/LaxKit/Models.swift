@@ -45,14 +45,22 @@ public struct SlackConversation: Decodable, Hashable, Identifiable, Sendable {
         }
     }
 
-    /// Sidebar name: `#general`, the other person for a DM, member handles for a group DM.
-    public func displayName(userName: (String) -> String?) -> String {
+    /// Sidebar name: `#general`, the other person for a DM, the other members of a group DM
+    /// (by name when `members` is known, else the handles in Slack's `mpdm-…` name).
+    public func displayName(userName: (String) -> String?, members: [String]? = nil,
+                            ownUserID: String? = nil) -> String {
         switch kind {
         case .channel, .privateChannel:
             return "#" + (name ?? id)
         case .directMessage:
             return userID.flatMap(userName) ?? userID ?? id
         case .groupDirectMessage:
+            if let others = members?.filter({ $0 != ownUserID }), !others.isEmpty {
+                let names = others.compactMap(userName)
+                if names.count == others.count {
+                    return names.sorted { $0.localizedStandardCompare($1) == .orderedAscending }.joined(separator: ", ")
+                }
+            }
             // Slack names these `mpdm-alice--bob--carol-1`.
             guard let name, let members = name.wholeMatch(of: /mpdm-(.+)-\d+/)?.1 else { return name ?? id }
             return members.split(separator: "--").joined(separator: ", ")

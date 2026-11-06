@@ -149,6 +149,14 @@ struct EndpointTests {
         #expect(requests[2].formFields["message_ts"] == "1.0")
     }
 
+    @Test func membersFollowCursors() async throws {
+        StubURLProtocol.reset(["conversations.members": [
+            #"{"ok":true,"members":["U1","U2"],"response_metadata":{"next_cursor":"n"}}"#,
+            #"{"ok":true,"members":["U3"],"response_metadata":{"next_cursor":""}}"#,
+        ]])
+        #expect(try await client.members(of: "G1") == ["U1", "U2", "U3"])
+    }
+
     @Test func realTimeURLComesFromRTMConnect() async throws {
         StubURLProtocol.reset(["rtm.connect": [#"{"ok":true,"url":"wss://wss-primary.slack.com/websocket/abc"}"#]])
         #expect(try await client.realTimeURL().absoluteString == "wss://wss-primary.slack.com/websocket/abc")

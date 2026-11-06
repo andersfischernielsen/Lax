@@ -75,6 +75,20 @@ extension SlackAPIClient {
         return Dictionary(response.usergroups.map { ($0.id, $0.handle) }, uniquingKeysWith: { first, _ in first })
     }
 
+    /// Member user IDs of a conversation.
+    public func members(of channel: String) async throws -> [String] {
+        var all: [String] = []
+        var cursor: String?
+        repeat {
+            var params = ["channel": channel, "limit": "200"]
+            params["cursor"] = cursor
+            let page: MembersResponse = try await call("conversations.members", params)
+            all += page.members
+            cursor = page.responseMetadata?.nextCursor?.nilIfEmpty
+        } while cursor != nil
+        return all
+    }
+
     /// A whole thread: the parent first, then every reply.
     public func replies(channel: String, threadTS: String) async throws -> [SlackMessage] {
         var all: [SlackMessage] = []
@@ -139,6 +153,16 @@ private struct HistoryResponse: Decodable {
 }
 
 private struct Empty: Decodable {}
+
+private struct MembersResponse: Decodable {
+    let members: [String]
+    let responseMetadata: ResponseMetadata?
+
+    enum CodingKeys: String, CodingKey {
+        case members
+        case responseMetadata = "response_metadata"
+    }
+}
 
 private struct PermalinkResponse: Decodable {
     let permalink: String

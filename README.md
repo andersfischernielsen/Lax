@@ -91,7 +91,7 @@ scripts/bundle.sh    # release build, wrapped as build/Lax.app
 scripts/screenshots.sh  # the README screenshots, from the demo workspace
 ```
 
-`build/Lax.app --args -demo` opens a made-up workspace that needs no Slack account, for
+`open build/Lax.app --args -demo` opens a made-up workspace that needs no Slack account, for
 trying Lax out and for screenshots.
 
 The code is in two parts:

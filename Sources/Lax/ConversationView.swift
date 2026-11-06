@@ -8,6 +8,8 @@ struct ConversationView: View {
     /// Scrolled to the newest message once; older pages load only after that.
     @State private var isPositioned = false
     @State private var isAtBottom = true
+    /// The top message when older ones were asked for; kept in place when they arrive.
+    @State private var pageAnchor: String?
     @Environment(WindowModel.self) private var window
 
     var body: some View {
@@ -26,8 +28,11 @@ struct ConversationView: View {
                     ProgressView()
                         .frame(maxWidth: .infinity)
                         .padding()
-                        // Visible at the top: load the next page, and again each time one lands.
-                        .task(id: timeline?.oldestTS) { workspace.loadOlder(in: conversation.id) }
+                        // Scrolled into view: load the page before the first message.
+                        .onAppear {
+                            pageAnchor = timeline?.oldestTS
+                            workspace.loadOlder(in: conversation.id)
+                        }
                         .selectionDisabled()
                         .listRowSeparator(.hidden)
                 }
@@ -54,6 +59,13 @@ struct ConversationView: View {
                 geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height - 60
             } action: { _, atBottom in
                 isAtBottom = atBottom
+            }
+            // Older messages arrived above: keep the message that was on top where it was, so
+            // the reading position holds and the spinner is out of view until scrolled to again.
+            .onChange(of: timeline?.oldestTS) { _, oldest in
+                guard let anchor = pageAnchor, oldest != anchor else { return }
+                pageAnchor = nil
+                proxy.scrollTo(anchor, anchor: .top)
             }
             // Follow new messages while at the bottom, as chat apps do.
             .onChange(of: messages.last?.ts, initial: true) { _, newest in

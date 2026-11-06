@@ -23,11 +23,11 @@ public struct UnreadState: Equatable, Sendable {
         byConversation[conversation] ?? Counts()
     }
 
-    /// Something to look at: unread messages outside muted conversations, or a
-    /// mention anywhere.
-    public func needsAttention(muted: Set<String>) -> Bool {
+    /// Something to look at: a mention anywhere (DMs count every message as one), or
+    /// unless `mentionsOnly`, unread messages outside muted conversations.
+    public func needsAttention(muted: Set<String>, mentionsOnly: Bool = false) -> Bool {
         byConversation.contains { id, counts in
-            counts.mentions > 0 || (counts.hasUnreads && !muted.contains(id))
+            counts.mentions > 0 || (!mentionsOnly && counts.hasUnreads && !muted.contains(id))
         }
     }
 

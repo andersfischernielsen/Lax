@@ -47,3 +47,10 @@ private func message(_ text: String, from user: String = "U2", thread: String? =
     #expect(mentioned.needsAttention(muted: ["C1"]))
     #expect(!UnreadState().needsAttention(muted: []))
 }
+
+@Test func mentionsOnlyAttentionIgnoresPlainUnreads() {
+    let quiet = UnreadState(["C1": .init(hasUnreads: true, mentions: 0)])
+    #expect(!quiet.needsAttention(muted: [], mentionsOnly: true))
+    let mentioned = UnreadState(["C1": .init(hasUnreads: true, mentions: 2)])
+    #expect(mentioned.needsAttention(muted: [], mentionsOnly: true))
+}

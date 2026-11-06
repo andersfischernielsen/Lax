@@ -8,6 +8,9 @@ final class AppModel {
     private(set) var workspaces: [SlackAccount.ID: WorkspaceModel] = [:]
     /// The last thing that went wrong, shown as an alert.
     var problem: Problem?
+    /// The view the next window opens in, when one is chosen with no window open.
+    /// Not observed: only a new window reads it, as it starts.
+    @ObservationIgnored var areaForNextWindow: WindowModel.Area?
 
     @ObservationIgnored private let store = CredentialStore()
 

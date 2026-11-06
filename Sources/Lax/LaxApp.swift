@@ -98,6 +98,7 @@ private struct WorkspaceCommands: Commands {
 private struct GoCommands: Commands {
     let model: AppModel
     @FocusedValue(WindowModel.self) private var window
+    @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
         CommandMenu("Go") {
@@ -127,9 +128,8 @@ private struct GoCommands: Commands {
         }
         CommandGroup(before: .sidebar) {
             ForEach(Array(WindowModel.Area.allCases.enumerated()), id: \.element) { index, area in
-                Button(area.title) { window?.area = area }
+                Button(area.title) { show(area) }
                     .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: .command)
-                    .disabled(window == nil)
             }
             Divider()
         }
@@ -138,6 +138,16 @@ private struct GoCommands: Commands {
                 .keyboardShortcut("f", modifiers: [.command, .option])
                 .disabled(window == nil)
         }
+    }
+
+    /// Shows the view in the window in front, or with every window closed, in a new one.
+    private func show(_ area: WindowModel.Area) {
+        if let window {
+            window.area = area
+            return
+        }
+        model.areaForNextWindow = area
+        openWindow(id: "main")
     }
 
     private var order: [String] {

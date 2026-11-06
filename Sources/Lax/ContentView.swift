@@ -37,7 +37,8 @@ private struct WindowContent: View {
         _storedConversation = storedConversation
         _storedArea = storedArea
         let window = WindowModel()
-        window.area = storedArea.wrappedValue
+        window.area = model.areaForNextWindow ?? storedArea.wrappedValue
+        model.areaForNextWindow = nil
         window.accountID = storedAccount.wrappedValue
         window.conversationID =
             storedConversation.wrappedValue
@@ -163,7 +164,7 @@ private struct WindowContent: View {
                 openWindow: openWindow, openSettings: openSettings)
         }
         .onChange(of: window.accountID) { _, id in storedAccount = id }
-        .onChange(of: window.area) { _, area in storedArea = area }
+        .onChange(of: window.area, initial: true) { _, area in storedArea = area }
         .onChange(of: window.place) { _, place in window.record(place) }
         .toolbar {
             ToolbarItemGroup(placement: .navigation) {

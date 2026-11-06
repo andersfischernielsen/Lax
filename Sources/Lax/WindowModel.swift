@@ -60,6 +60,38 @@ final class WindowModel {
         }
     }
 
+    /// Where the window is: what back and forward move between.
+    struct Place: Equatable, Sendable {
+        let area: Area
+        let conversationID: SlackConversation.ID?
+        let followedThread: ThreadRef?
+    }
+
+    private(set) var history = NavigationHistory<Place>()
+
+    var place: Place {
+        Place(area: area, conversationID: conversationID, followedThread: followedThread)
+    }
+
+    /// Notes a place the window went to; going back or forward doesn't add one.
+    func record(_ place: Place) {
+        history.visit(place)
+    }
+
+    func goBack() {
+        if let place = history.goBack() { go(to: place) }
+    }
+
+    func goForward() {
+        if let place = history.goForward() { go(to: place) }
+    }
+
+    private func go(to place: Place) {
+        area = place.area
+        select(place.conversationID)
+        followedThread = place.followedThread
+    }
+
     func select(_ conversation: SlackConversation.ID?) {
         guard conversation != conversationID else { return }
         conversationID = conversation

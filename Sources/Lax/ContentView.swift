@@ -105,6 +105,18 @@ struct ContentView: View {
         }
         .onChange(of: window.accountID) { _, id in storedAccount = id }
         .onChange(of: window.area) { _, area in storedArea = area }
+        .onChange(of: window.place) { _, place in window.record(place) }
+        .toolbar {
+            ToolbarItemGroup(placement: .navigation) {
+                Button("Back", systemImage: "chevron.backward", action: window.goBack)
+                    .disabled(!window.history.canGoBack)
+                    .help("Go back")
+                Button("Forward", systemImage: "chevron.forward", action: window.goForward)
+                    .disabled(!window.history.canGoForward)
+                    .help("Go forward")
+            }
+        }
+        .background(MouseNavigation(back: window.goBack, forward: window.goForward))
         .onChange(of: window.conversationID) { _, id in storedConversation = id }
     }
 

@@ -646,7 +646,7 @@ final class WorkspaceModel: Identifiable {
 }
 
 /// A thread: its conversation and the parent message's `ts`.
-struct ThreadRef: Hashable {
+struct ThreadRef: Hashable, Sendable {
     let channel: String
     let ts: String
 

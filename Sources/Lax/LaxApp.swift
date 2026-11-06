@@ -60,6 +60,13 @@ private struct GoCommands: Commands {
                 Button("Open Quickly…") { window?.showsQuickSwitcher.toggle() }
                     .keyboardShortcut("k", modifiers: .command)
                 Divider()
+                Button("Back") { window?.goBack() }
+                    .keyboardShortcut("[", modifiers: .command)
+                    .disabled(!(window?.history.canGoBack ?? false))
+                Button("Forward") { window?.goForward() }
+                    .keyboardShortcut("]", modifiers: .command)
+                    .disabled(!(window?.history.canGoForward ?? false))
+                Divider()
                 Button("Previous Conversation") { step(by: -1) }
                     .keyboardShortcut(.upArrow, modifiers: [.command, .option])
                 Button("Next Conversation") { step(by: 1) }

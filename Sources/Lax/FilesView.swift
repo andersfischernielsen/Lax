@@ -1,5 +1,4 @@
 import AppKit
-import AVKit
 import LaxKit
 import SwiftUI
 
@@ -7,8 +6,8 @@ import SwiftUI
 struct FilesView: View {
     let files: [SlackFile]
     let loadImage: (URL) async -> NSImage?
-    /// A player item for a Slack-hosted video, carrying the session cookie.
-    let playerItem: (URL) -> AVPlayerItem?
+    /// Opens an image or video in Lax; false for other files, which open in Slack.
+    let open: (SlackFile) -> Bool
     @Environment(\.openURL) private var openURL
 
     var body: some View {
@@ -16,22 +15,26 @@ struct FilesView: View {
             ForEach(files) { file in
                 Group {
                     if let video = file.video {
-                        VideoView(video: video, loadImage: loadImage, playerItem: playerItem)
+                        VideoView(video: video, loadImage: loadImage)
                     } else if let preview = file.preview {
                         PreviewImage(preview: preview, loadImage: loadImage)
                     } else {
                         FileChip(file: file)
                     }
                 }
-                .onTapGesture { if let permalink = file.permalink { openURL(permalink) } }
+                .onTapGesture { show(file) }
                 .help(file.name)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(file.preview == nil ? file.name : "Image, \(file.name)")
                 .accessibilityAddTraits(.isLink)
-                .accessibilityAction { if let permalink = file.permalink { openURL(permalink) } }
+                .accessibilityAction { show(file) }
             }
         }
         .padding(.top, 4)
+    }
+
+    private func show(_ file: SlackFile) {
+        if !open(file), let permalink = file.permalink { openURL(permalink) }
     }
 }
 
@@ -81,44 +84,26 @@ private struct FileChip: View {
     }
 }
 
-/// A video: its poster with a play button, then the standard player in place.
+/// A video's poster with a play symbol; clicking opens it in its own tab.
 private struct VideoView: View {
     let video: SlackFile.Video
     let loadImage: (URL) async -> NSImage?
-    let playerItem: (URL) -> AVPlayerItem?
-    @State private var player: AVPlayer?
 
     var body: some View {
         // The poster's shape; 16:9 without one.
         let size = video.poster?.fitted(maxWidth: 360, maxHeight: 300) ?? (width: 360, height: 202)
-        Group {
-            if let player {
-                VideoPlayer(player: player)
+        ZStack {
+            if let poster = video.poster {
+                PreviewImage(preview: poster, loadImage: loadImage)
             } else {
-                ZStack {
-                    if let poster = video.poster {
-                        PreviewImage(preview: poster, loadImage: loadImage)
-                    } else {
-                        RoundedRectangle(cornerRadius: 8).fill(.quaternary)
-                    }
-                    Button("Play", systemImage: "play.circle.fill") { play() }
-                        .labelStyle(.iconOnly)
-                        .font(.system(size: 44))
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.white, .black.opacity(0.4))
-                }
+                RoundedRectangle(cornerRadius: 8).fill(.quaternary)
             }
+            Image(systemName: "play.circle.fill")
+                .font(.system(size: 44))
+                .foregroundStyle(.white, .black.opacity(0.4))
         }
         .aspectRatio(size.width / max(size.height, 1), contentMode: .fit)
         .frame(maxWidth: size.width, maxHeight: size.height)
         .clipShape(RoundedRectangle(cornerRadius: 8))
-        .onDisappear { player?.pause() }
-    }
-
-    private func play() {
-        guard let item = playerItem(video.url) else { return }
-        let player = AVPlayer(playerItem: item)
-        self.player = player
-        player.play()
     }
 }

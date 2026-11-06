@@ -31,6 +31,11 @@ struct LaxApp: App {
             GoCommands(model: model)
         }
 
+        // Images and videos from messages, each in a tab beside the window it came from.
+        WindowGroup("Media", id: "media", for: MediaItem.self) { $item in
+            if let item { MediaViewer(model: model, item: item) }
+        }
+
         Settings {
             SettingsView(model: model)
         }

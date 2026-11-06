@@ -12,6 +12,7 @@ struct MessageItem: View {
     var showsThreadLink = true
     @State private var confirmingDelete = false
     @Environment(WindowModel.self) private var window
+    @Environment(\.openWindow) private var openWindow
 
     /// Offered under "Add Reaction" in the message menu.
     private static let quickReactions = ["+1", "heart", "joy", "tada", "eyes", "pray", "white_check_mark", "raised_hands"]
@@ -46,7 +47,12 @@ struct MessageItem: View {
                 AttachmentView(attachment: attachment, formatter: formatter, emojiImage: emojiImage)
             }
             if !message.files.isEmpty {
-                FilesView(files: message.files, loadImage: workspace.image(at:), playerItem: workspace.playerItem(for:))
+                FilesView(files: message.files, loadImage: workspace.image(at:)) { file in
+                    guard let item = MediaItem(file, accountID: workspace.account.id) else { return false }
+                    TabJoiner.opener = NSApp.keyWindow
+                    openWindow(id: "media", value: item)
+                    return true
+                }
             }
             if !message.buttons.isEmpty {
                 BotButtons(buttons: message.buttons) { workspace.press($0, on: message, in: channel) }

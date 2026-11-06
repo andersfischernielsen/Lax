@@ -53,6 +53,8 @@ final class WindowModel {
     var reactingTo: ReactionTarget?
     /// A message being edited, shown in a sheet.
     var editing: MessageEdit?
+    /// A message waiting for confirmation before it's deleted.
+    var deleting: ReactionTarget?
 
     /// Signs in to another workspace and switches this window to it.
     func beginSignIn(with app: AppModel) {

@@ -205,10 +205,13 @@ private struct ConversationRow: View {
         .contextMenu {
             if counts.hasUnreads || counts.mentions > 0 {
                 Button("Mark as Read") { workspace.markAllRead(in: id) }
+                    .keyboardShortcut(Shortcuts.markConversationRead)
             } else if let newest = workspace.latestActivity[id] {
                 Button("Mark as Unread") { workspace.markUnread(from: newest, in: id) }
+                    .keyboardShortcut(Shortcuts.markConversationRead)
             }
             Button(isMuted ? "Unmute" : "Mute") { workspace.setMuted(!isMuted, id) }
+                .keyboardShortcut(Shortcuts.mute)
         }
     }
 }

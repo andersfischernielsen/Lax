@@ -10,7 +10,6 @@ struct MessageItem: View {
     let showsHeader: Bool
     /// False inside a thread, where the replies are already on screen.
     var showsThreadLink = true
-    @State private var confirmingDelete = false
     @Environment(WindowModel.self) private var window
     @Environment(\.openWindow) private var openWindow
 
@@ -76,16 +75,12 @@ struct MessageItem: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("message-\(message.ts)")
         .contextMenu { menu }
-        .confirmationDialog("Delete this message?", isPresented: $confirmingDelete) {
-            Button("Delete", role: .destructive) { workspace.delete(message, in: channel) }
-        } message: {
-            Text("It's removed for everyone in the conversation.")
-        }
         .onAppear { workspace.requestEmojiImages(customEmojiNames(in: text, formatter: formatter)) }
     }
 
     @ViewBuilder private var menu: some View {
         Button("Reply in Thread") { window.openThread(message.threadTS ?? message.ts, in: channel) }
+            .keyboardShortcut(Shortcuts.replyInThread)
         Menu("Add Reaction") {
             ForEach(Self.quickReactions, id: \.self) { name in
                 let isMine = message.reactions.first { $0.name == name }?.users.contains(workspace.account.userID) ?? false
@@ -96,19 +91,25 @@ struct MessageItem: View {
             }
             Divider()
             Button("More…") { window.reactingTo = ReactionTarget(channel: channel, message: message) }
+                .keyboardShortcut(Shortcuts.addReaction)
         }
         Divider()
         // In the conversation only: thread replies have their own read state.
         if showsThreadLink, message.isChannelLevel {
             Button("Mark as Unread") { workspace.markUnread(from: message.ts, in: channel) }
+                .keyboardShortcut(Shortcuts.markUnread)
             Divider()
         }
         Button("Copy Text") { workspace.copyText(of: message) }
+            .keyboardShortcut(Shortcuts.copyText)
         Button("Copy Link") { workspace.copyLink(to: message, in: channel) }
+            .keyboardShortcut(Shortcuts.copyLink)
         if message.userID == workspace.account.userID {
             Divider()
             Button("Edit…") { window.editing = MessageEdit(message, in: channel) }
-            Button("Delete…", role: .destructive) { confirmingDelete = true }
+                .keyboardShortcut(Shortcuts.edit)
+            Button("Delete…", role: .destructive) { window.deleting = ReactionTarget(channel: channel, message: message) }
+                .keyboardShortcut(Shortcuts.delete)
         }
     }
 

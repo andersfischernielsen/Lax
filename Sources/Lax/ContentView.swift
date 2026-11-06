@@ -122,6 +122,13 @@ private struct WindowContent: View {
                 window.editingDisplayName = nil
             }, cancel: { window.editingDisplayName = nil })
         }
+        .confirmationDialog("Delete this message?", isPresented: Binding(
+            get: { window.deleting != nil }, set: { if !$0 { window.deleting = nil } }
+        ), presenting: window.deleting) { target in
+            Button("Delete", role: .destructive) { workspace?.delete(target.message, in: target.channel) }
+        } message: { _ in
+            Text("It's removed for everyone in the conversation.")
+        }
         .sheet(item: $window.signIn) { controller in
             SignInView(controller: controller, cancel: { window.signIn = nil })
         }

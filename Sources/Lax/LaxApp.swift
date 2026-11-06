@@ -29,6 +29,7 @@ struct LaxApp: App {
         .commands {
             WorkspaceCommands(model: model)
             GoCommands(model: model)
+            MessageCommands(model: model)
         }
 
         // Images and videos from messages, each in a tab beside the window it came from.
@@ -136,5 +137,83 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 app.sendAction(action, to: newWindow.target, from: newWindow)
             }
         }
+    }
+}
+
+/// The Message and Conversation menus: what the right-click menus offer, for the selected
+/// message and the open conversation, so their shortcuts work from the keyboard.
+private struct MessageCommands: Commands {
+    let model: AppModel
+    @FocusedValue(WindowModel.self) private var window
+
+    var body: some Commands {
+        CommandMenu("Message") {
+            let selected = selection
+            let message = selected?.message
+            let isOwn = message?.userID != nil && message?.userID == selected?.workspace.account.userID
+            Button("Reply in Thread") {
+                if let selected, let message { window?.openThread(message.threadTS ?? message.ts, in: selected.channel) }
+            }
+            .keyboardShortcut(Shortcuts.replyInThread)
+            .disabled(message == nil)
+            Button("Add Reaction…") {
+                if let selected, let message { window?.reactingTo = ReactionTarget(channel: selected.channel, message: message) }
+            }
+            .keyboardShortcut(Shortcuts.addReaction)
+            .disabled(message == nil)
+            Button("Mark as Unread") {
+                if let selected, let message { selected.workspace.markUnread(from: message.ts, in: selected.channel) }
+            }
+            .keyboardShortcut(Shortcuts.markUnread)
+            .disabled(!(message?.isChannelLevel ?? false))
+            Divider()
+            Button("Copy Link") {
+                if let selected, let message { selected.workspace.copyLink(to: message, in: selected.channel) }
+            }
+            .keyboardShortcut(Shortcuts.copyLink)
+            .disabled(message == nil)
+            Divider()
+            Button("Edit…") {
+                if let selected, let message { window?.editing = MessageEdit(message, in: selected.channel) }
+            }
+            .keyboardShortcut(Shortcuts.edit)
+            .disabled(!isOwn)
+            Button("Delete…") {
+                if let selected, let message { window?.deleting = ReactionTarget(channel: selected.channel, message: message) }
+            }
+            .keyboardShortcut(Shortcuts.delete)
+            .disabled(!isOwn)
+        }
+        CommandMenu("Conversation") {
+            let workspace = model.workspace(window?.accountID)
+            let channel = window?.conversationID
+            let isUnread = channel.map { workspace?.isUnread($0) ?? false } ?? false
+            let isMuted = channel.map { workspace?.muted.contains($0) ?? false } ?? false
+            Button(isUnread ? "Mark as Read" : "Mark as Unread") {
+                guard let workspace, let channel else { return }
+                if isUnread {
+                    workspace.markAllRead(in: channel)
+                } else if let newest = workspace.latestActivity[channel] ?? workspace.timelines[channel]?.newestTS {
+                    workspace.markUnread(from: newest, in: channel)
+                }
+            }
+            .keyboardShortcut(Shortcuts.markConversationRead)
+            .disabled(channel == nil)
+            Button(isMuted ? "Unmute" : "Mute") {
+                if let workspace, let channel { workspace.setMuted(!isMuted, channel) }
+            }
+            .keyboardShortcut(Shortcuts.mute)
+            .disabled(channel == nil)
+        }
+    }
+
+    /// The selected message in the open conversation, with where it is.
+    private var selection: (workspace: WorkspaceModel, channel: String, message: SlackMessage?)? {
+        guard let window, let channel = window.conversationID,
+              let workspace = model.workspace(window.accountID) else { return nil }
+        let message = window.selectedMessage.flatMap { ts in
+            workspace.timelines[channel]?.messages.first { $0.ts == ts }
+        }
+        return (workspace, channel, message)
     }
 }

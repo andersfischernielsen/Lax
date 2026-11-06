@@ -24,10 +24,19 @@ public enum Log {
         }
     }
 
-    /// Host and path only: queries can carry tickets or tokens.
+    /// Host and path only, since queries can carry tickets or tokens. Path segments
+    /// that look like one-time codes (e.g. Slack's `z-app-…` login links) are masked.
     public static func redacted(_ url: URL?) -> String {
         guard let url else { return "nil" }
-        return "\(url.scheme ?? "")://\(url.host ?? "")\(url.path)"
+        let path = url.path.split(separator: "/", omittingEmptySubsequences: false)
+            .map { isSecretLike($0) ? "<redacted>" : String($0) }
+            .joined(separator: "/")
+        return "\(url.scheme ?? "")://\(url.host ?? "")\(path)"
+    }
+
+    static func isSecretLike(_ segment: Substring) -> Bool {
+        segment.hasPrefix("z-app-") || segment.hasPrefix("xox")
+            || (segment.count >= 24 && segment.contains(where: \.isNumber))
     }
 
     private static func describe(decoding error: DecodingError) -> String {

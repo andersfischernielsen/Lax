@@ -43,7 +43,9 @@ private struct PreviewImage: View {
                 Image(nsImage: image).resizable().scaledToFit()
             }
         }
-        .frame(width: size.width, height: size.height)
+        // Up to its fitted size, smaller in a narrow column, always in proportion.
+        .aspectRatio(size.width / max(size.height, 1), contentMode: .fit)
+        .frame(maxWidth: size.width, maxHeight: size.height)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .task(id: preview.url) { image = await loadImage(preview.url) }
     }

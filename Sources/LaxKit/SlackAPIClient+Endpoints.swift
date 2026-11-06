@@ -75,6 +75,14 @@ extension SlackAPIClient {
         return Dictionary(response.usergroups.map { ($0.id, $0.handle) }, uniquingKeysWith: { first, _ in first })
     }
 
+    /// Messages matching a search, newest first.
+    public func searchMessages(_ query: String, count: Int = 50) async throws -> [SearchResult] {
+        let response: SearchResponse = try await call("search.messages", [
+            "query": query, "count": String(count), "sort": "timestamp", "sort_dir": "desc",
+        ])
+        return response.messages.matches.compactMap(\.value)
+    }
+
     /// Pinned messages, most recently pinned first.
     public func pinnedMessages(in channel: String) async throws -> [SlackMessage] {
         let response: PinsResponse = try await call("pins.list", ["channel": channel])
@@ -160,6 +168,14 @@ private struct HistoryResponse: Decodable {
 
 private struct Empty: Decodable {}
 
+private struct SearchResponse: Decodable {
+    struct Matches: Decodable {
+        let matches: [Failable<SearchResult>]
+    }
+
+    let messages: Matches
+}
+
 private struct PinsResponse: Decodable {
     /// Pinned files come back without a message; those are skipped.
     struct Item: Decodable {
@@ -242,4 +258,35 @@ private struct PostMessageResponse: Decodable {
 
 private struct RTMConnectResponse: Decodable {
     let url: String
+}
+
+/// A message found by search, with the conversation it's in.
+public struct SearchResult: Decodable, Identifiable, Sendable {
+    public let message: SlackMessage
+    public let channelID: String
+    /// Channel name; nil for DMs.
+    public let channelName: String?
+
+    public var id: String { "\(channelID)/\(message.ts)" }
+
+    public init(from decoder: Decoder) throws {
+        message = try SlackMessage(from: decoder)
+        let c = try decoder.container(keyedBy: Keys.self)
+        let channel = try c.decode(Channel.self, forKey: .channel)
+        channelID = channel.id
+        channelName = channel.isPrivateIM == true ? nil : channel.name
+    }
+
+    private enum Keys: String, CodingKey { case channel }
+
+    private struct Channel: Decodable {
+        let id: String
+        let name: String?
+        let isPrivateIM: Bool?
+
+        enum CodingKeys: String, CodingKey {
+            case id, name
+            case isPrivateIM = "is_im"
+        }
+    }
 }

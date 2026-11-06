@@ -167,6 +167,20 @@ struct EndpointTests {
         #expect(try await client.pinnedMessages(in: "C1").map(\.text) == ["pinned"])
     }
 
+    @Test func searchReturnsMessagesWithChannels() async throws {
+        StubURLProtocol.reset(["search.messages": [#"""
+            {"ok":true,"query":"deploy","messages":{"total":2,"matches":[
+              {"type":"message","ts":"2.0","user":"U1","text":"deploy done","channel":{"id":"C1","name":"general"}},
+              {"type":"message","ts":"1.0","user":"U2","text":"deploy?","channel":{"id":"D1","name":"U2","is_im":true}},
+              {"type":"message","text":"broken, no ts"}
+            ]}}
+            """#]])
+        let results = try await client.searchMessages("deploy")
+        #expect(results.map(\.message.text) == ["deploy done", "deploy?"])
+        #expect(results.map(\.channelName) == ["general", nil])
+        #expect(StubURLProtocol.requests[0].formFields["query"] == "deploy")
+    }
+
     @Test func realTimeURLComesFromRTMConnect() async throws {
         StubURLProtocol.reset(["rtm.connect": [#"{"ok":true,"url":"wss://wss-primary.slack.com/websocket/abc"}"#]])
         #expect(try await client.realTimeURL().absoluteString == "wss://wss-primary.slack.com/websocket/abc")

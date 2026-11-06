@@ -26,6 +26,8 @@ struct ReactionsView: View {
                 }
                 .buttonStyle(.plain)
                 .help(tooltip(for: reaction))
+                .accessibilityLabel(accessibilityLabel(for: reaction, isMine: isMine))
+                .accessibilityHint(isMine ? "Removes your reaction" : "Adds your reaction")
             }
         }
         .padding(.top, 4)
@@ -39,6 +41,12 @@ struct ReactionsView: View {
         } else {
             Text(":\(name):").foregroundStyle(.secondary)
         }
+    }
+
+    private func accessibilityLabel(for reaction: SlackReaction, isMine: Bool) -> String {
+        let name = reaction.name.replacing("_", with: " ")
+        let count = reaction.count == 1 ? "1 reaction" : "\(reaction.count) reactions"
+        return "\(name), \(count)" + (isMine ? ", including yours" : "")
     }
 
     private func tooltip(for reaction: SlackReaction) -> String {

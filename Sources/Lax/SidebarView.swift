@@ -88,7 +88,7 @@ private struct ConversationRow: View {
         Label {
             HStack(spacing: 4) {
                 Text(name.trimmingPrefix("#")).lineLimit(1)
-                if isMuted { Image(systemName: "bell.slash").font(.caption2) }
+                if isMuted { Image(systemName: "bell.slash").font(.caption2).accessibilityLabel("Muted") }
             }
         } icon: {
             Image(systemName: icon(for: conversation.kind))

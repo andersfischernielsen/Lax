@@ -23,6 +23,7 @@ struct EmojiPickerView: View {
                         Button { pick(name) } label: { cell(name) }
                             .buttonStyle(.plain)
                             .help(":\(name):")
+                            .accessibilityLabel(name.replacing("_", with: " "))
                             .onAppear { if Emoji.character(for: name) == nil { requestImages([name]) } }
                     }
                 }

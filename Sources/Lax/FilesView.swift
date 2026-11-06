@@ -20,6 +20,10 @@ struct FilesView: View {
                 }
                 .onTapGesture { if let permalink = file.permalink { openURL(permalink) } }
                 .help(file.name)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(file.preview == nil ? file.name : "Image, \(file.name)")
+                .accessibilityAddTraits(.isLink)
+                .accessibilityAction { if let permalink = file.permalink { openURL(permalink) } }
             }
         }
         .padding(.top, 4)

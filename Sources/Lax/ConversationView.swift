@@ -150,6 +150,9 @@ private struct NewMessagesDivider: View {
             Rectangle().fill(.red).frame(height: 1)
             Text("New").font(.caption.weight(.semibold)).foregroundStyle(.red)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("New messages")
+        .accessibilityAddTraits(.isHeader)
         .padding(.horizontal, 16)
         .padding(.top, 10)
     }

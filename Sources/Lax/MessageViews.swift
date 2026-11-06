@@ -118,11 +118,15 @@ struct MessageRow<Footer: View>: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            if showsHeader {
-                if let avatar { avatar } else { AvatarView.placeholder }
-            } else {
-                Color.clear.frame(width: AvatarView.size, height: 1)
+            Group {
+                if showsHeader {
+                    if let avatar { avatar } else { AvatarView.placeholder }
+                } else {
+                    Color.clear.frame(width: AvatarView.size, height: 1)
+                }
             }
+            // The name is read out with the message; the picture adds nothing.
+            .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 if showsHeader {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -132,6 +136,7 @@ struct MessageRow<Footer: View>: View {
                             .foregroundStyle(.secondary)
                         if message.isEdited { Text("(edited)").font(.caption).foregroundStyle(.secondary) }
                     }
+                    .accessibilityElement(children: .combine)
                 }
                 // No text selection: it would replace the message menu on right-click.
                 text

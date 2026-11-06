@@ -5,8 +5,6 @@ import Observation
 final class AppModel {
     private(set) var accounts: [SlackAccount] = []
     private(set) var workspaces: [SlackAccount.ID: WorkspaceModel] = [:]
-    var selectedAccountID: SlackAccount.ID?
-    var signIn: SignInController?
     var errorMessage: String?
 
     @ObservationIgnored private let store = CredentialStore()
@@ -16,8 +14,9 @@ final class AppModel {
         workspaces.values.contains { $0.unread.needsAttention(muted: $0.muted) }
     }
 
-    var currentWorkspace: WorkspaceModel? {
-        selectedAccountID.flatMap { workspaces[$0] }
+    /// The workspace for `id`, or the first one when `id` is unknown.
+    func workspace(_ id: SlackAccount.ID?) -> WorkspaceModel? {
+        id.flatMap { workspaces[$0] } ?? accounts.first.flatMap { workspaces[$0.id] }
     }
 
     func load() {
@@ -29,15 +28,14 @@ final class AppModel {
             errorMessage = "Couldn't read saved accounts from the Keychain (\(error))."
         }
         syncWorkspaces()
-        if currentWorkspace == nil { selectedAccountID = accounts.first?.id }
     }
 
-    func beginSignIn() {
-        signIn = SignInController { [weak self] accounts in self?.finishSignIn(with: accounts) }
-    }
-
-    func cancelSignIn() {
-        signIn = nil
+    /// A sign-in that saves the accounts it finds, then calls `finished` with them.
+    func signIn(finished: @escaping ([SlackAccount]) -> Void) -> SignInController {
+        SignInController { [weak self] accounts in
+            self?.save(accounts)
+            finished(accounts)
+        }
     }
 
     func signOut(of account: SlackAccount) {
@@ -46,12 +44,10 @@ final class AppModel {
         } catch {
             errorMessage = "Couldn't remove \(account.teamName) from the Keychain (\(error))."
         }
-        if selectedAccountID == account.id { selectedAccountID = nil }
         load()
     }
 
-    private func finishSignIn(with newAccounts: [SlackAccount]) {
-        signIn = nil
+    private func save(_ newAccounts: [SlackAccount]) {
         do {
             for account in newAccounts {
                 try store.save(account)
@@ -63,7 +59,6 @@ final class AppModel {
             errorMessage = "Couldn't save the account to the Keychain (\(error))."
         }
         load()
-        selectedAccountID = newAccounts.first?.id ?? selectedAccountID
     }
 
     /// One running workspace per saved account.

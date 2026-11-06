@@ -1,28 +1,17 @@
 import LaxKit
 import SwiftUI
 
-/// A thread's parent and replies, with a composer for replying.
+/// A thread's parent and replies, with a composer for replying. Shown in the inspector.
 struct ThreadView: View {
     let workspace: WorkspaceModel
     let thread: ThreadRef
+    @Environment(WindowModel.self) private var window
 
     var body: some View {
         let formatter = workspace.textFormatter()
         let messages = workspace.threads[thread]?.messages ?? []
 
         VStack(spacing: 0) {
-            HStack {
-                Text("Thread").font(.headline)
-                Spacer()
-                Button("Close Thread", systemImage: "xmark") { workspace.closeThread() }
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.borderless)
-                    .keyboardShortcut(.cancelAction)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            Divider()
-
             if messages.isEmpty {
                 ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -51,6 +40,8 @@ struct ThreadView: View {
                 workspace.send(in: thread.channel, thread: thread.ts)
             }
         }
+        .task { await workspace.loadThread(thread) }
+        .onExitCommand { window.showsInspector = false }
     }
 
     private var draft: Binding<String> {

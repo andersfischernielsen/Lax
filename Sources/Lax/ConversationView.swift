@@ -6,8 +6,10 @@ struct ConversationView: View {
     let workspace: WorkspaceModel
     let conversation: SlackConversation
     @State private var showsPinned = false
+    @Environment(WindowModel.self) private var window
 
     var body: some View {
+        @Bindable var window = window
         let formatter = workspace.textFormatter()
         let timeline = workspace.timelines[conversation.id]
         let messages = timeline?.messages ?? []
@@ -46,33 +48,32 @@ struct ConversationView: View {
         }
         .navigationTitle(workspace.displayName(of: conversation))
         .navigationSubtitle(conversation.topic ?? "")
-        .inspector(isPresented: threadIsOpen) {
-            if let thread = workspace.openThread {
-                ThreadView(workspace: workspace, thread: thread)
-                    .id(thread)
-                    .inspectorColumnWidth(min: 300, ideal: 380, max: 560)
-            }
-        }
         .toolbar {
             Button("Pinned Messages", systemImage: "pin") { showsPinned.toggle() }
+                .help("Show pinned messages")
                 .popover(isPresented: $showsPinned) {
                     PinnedView(workspace: workspace, channel: conversation.id)
                 }
         }
-        .sheet(item: reactingTo) { target in
+        .sheet(item: $window.reactingTo) { target in
             EmojiPickerView(customEmoji: workspace.customEmoji, emojiImages: workspace.emojiImages,
                             requestImages: workspace.requestEmojiImages) { name in
-                workspace.reactingTo = nil
+                window.reactingTo = nil
                 let alreadyMine = target.message.reactions.first { $0.name == name }?
                     .users.contains(workspace.account.userID) ?? false
                 if !alreadyMine { workspace.toggleReaction(name, on: target.message, in: target.channel) }
             } cancel: {
-                workspace.reactingTo = nil
+                window.reactingTo = nil
             }
         }
-        .sheet(item: editing) { _ in
-            EditMessageView(text: editText, save: workspace.saveEdit, cancel: { workspace.editing = nil })
+        .sheet(item: $window.editing) { _ in
+            EditMessageView(text: editText, save: {
+                if let edit = window.editing { workspace.saveEdit(edit) }
+                window.editing = nil
+            }, cancel: { window.editing = nil })
         }
+        .onAppear { workspace.show(conversation.id) }
+        .onDisappear { workspace.hide(conversation.id) }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             workspace.markReadIfVisible()
         }
@@ -88,20 +89,8 @@ struct ConversationView: View {
                 })
     }
 
-    private var reactingTo: Binding<ReactionTarget?> {
-        Binding(get: { workspace.reactingTo }, set: { workspace.reactingTo = $0 })
-    }
-
-    private var editing: Binding<MessageEdit?> {
-        Binding(get: { workspace.editing }, set: { workspace.editing = $0 })
-    }
-
     private var editText: Binding<String> {
-        Binding(get: { workspace.editing?.text ?? "" }, set: { workspace.editing?.text = $0 })
-    }
-
-    private var threadIsOpen: Binding<Bool> {
-        Binding(get: { workspace.openThread != nil }, set: { if !$0 { workspace.closeThread() } })
+        Binding(get: { window.editing?.text ?? "" }, set: { window.editing?.text = $0 })
     }
 
     private func typingSummary(at date: Date) -> String? {
@@ -135,3 +124,4 @@ private struct NewMessagesDivider: View {
         .padding(.top, 10)
     }
 }
+

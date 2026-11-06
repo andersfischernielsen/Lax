@@ -5,11 +5,12 @@ import SwiftUI
 struct SearchResultsView: View {
     let workspace: WorkspaceModel
     let results: [SearchResult]
+    @Environment(WindowModel.self) private var window
 
     var body: some View {
         let formatter = workspace.textFormatter()
         if results.isEmpty {
-            ContentUnavailableView.search(text: workspace.searchQuery)
+            ContentUnavailableView.search(text: window.searchQuery)
         } else {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
@@ -28,7 +29,7 @@ struct SearchResultsView: View {
                                 .padding(.leading, 62)
                         }
                         .contentShape(Rectangle())
-                        .onTapGesture { workspace.open(result) }
+                        .onTapGesture { window.open(result) }
                         Divider().padding(.top, 8)
                     }
                 }

@@ -3,10 +3,12 @@ import SwiftUI
 
 struct SidebarView: View {
     let model: AppModel
+    let workspace: WorkspaceModel?
+    @Environment(WindowModel.self) private var window
 
     var body: some View {
         Group {
-            if let workspace = model.currentWorkspace {
+            if let workspace {
                 ConversationList(workspace: workspace)
             } else {
                 List {}
@@ -16,7 +18,7 @@ struct SidebarView: View {
             ToolbarItem { workspaceMenu }
         }
         .safeAreaInset(edge: .bottom) {
-            if let workspace = model.currentWorkspace { ConnectionStatusView(status: workspace.status) }
+            if let workspace { ConnectionStatusView(status: workspace.status) }
         }
     }
 
@@ -24,20 +26,20 @@ struct SidebarView: View {
         Menu {
             ForEach(model.accounts) { account in
                 Toggle(account.teamName, isOn: Binding(
-                    get: { model.selectedAccountID == account.id },
-                    set: { if $0 { model.selectedAccountID = account.id } }
+                    get: { workspace?.account.id == account.id },
+                    set: { if $0 { window.accountID = account.id } }
                 ))
             }
             Divider()
-            Button("Add Workspace…") { model.beginSignIn() }
-            if let workspace = model.currentWorkspace {
-                Button("Set Display Name…") { workspace.beginEditingDisplayName() }
+            Button("Add Workspace…") { window.beginSignIn(with: model) }
+            if let workspace {
+                Button("Set Display Name…") { window.editingDisplayName = workspace.ownDisplayName }
             }
-            if let account = model.currentWorkspace?.account {
+            if let account = workspace?.account {
                 Button("Sign Out of \(account.teamName)", role: .destructive) { model.signOut(of: account) }
             }
         } label: {
-            Label(model.currentWorkspace?.account.teamName ?? "Workspaces", systemImage: "building.2")
+            Label(workspace?.account.teamName ?? "Workspaces", systemImage: "building.2")
                 .labelStyle(.titleAndIcon)
         }
     }
@@ -45,9 +47,10 @@ struct SidebarView: View {
 
 private struct ConversationList: View {
     let workspace: WorkspaceModel
+    @Environment(WindowModel.self) private var window
 
     var body: some View {
-        List(selection: Binding(get: { workspace.selectedConversationID }, set: { workspace.select($0) })) {
+        List(selection: Binding(get: { window.conversationID }, set: { window.select($0) })) {
             section("Channels", kinds: [.channel, .privateChannel])
             section("Direct Messages", kinds: [.directMessage, .groupDirectMessage])
         }

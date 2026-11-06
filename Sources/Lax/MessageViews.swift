@@ -11,6 +11,7 @@ struct MessageItem: View {
     /// False inside a thread, where the replies are already on screen.
     var showsThreadLink = true
     @State private var confirmingDelete = false
+    @Environment(WindowModel.self) private var window
 
     /// Offered under "Add Reaction" in the message menu.
     private static let quickReactions = ["+1", "heart", "joy", "tada", "eyes", "pray", "white_check_mark", "raised_hands"]
@@ -43,7 +44,7 @@ struct MessageItem: View {
             }
             if showsThreadLink, message.replyCount > 0 {
                 Button(message.replyCount == 1 ? "1 reply" : "\(message.replyCount) replies") {
-                    workspace.openThread(message.ts, in: channel)
+                    window.openThread(message.ts, in: channel)
                 }
                 .buttonStyle(.link)
                 .font(.caption.weight(.medium))
@@ -61,7 +62,7 @@ struct MessageItem: View {
     }
 
     @ViewBuilder private var menu: some View {
-        Button("Reply in Thread") { workspace.openThread(message.threadTS ?? message.ts, in: channel) }
+        Button("Reply in Thread") { window.openThread(message.threadTS ?? message.ts, in: channel) }
         Menu("Add Reaction") {
             ForEach(Self.quickReactions, id: \.self) { name in
                 let isMine = message.reactions.first { $0.name == name }?.users.contains(workspace.account.userID) ?? false
@@ -71,14 +72,14 @@ struct MessageItem: View {
                 ))
             }
             Divider()
-            Button("More…") { workspace.reactingTo = ReactionTarget(channel: channel, message: message) }
+            Button("More…") { window.reactingTo = ReactionTarget(channel: channel, message: message) }
         }
         Divider()
         Button("Copy Text") { workspace.copyText(of: message) }
         Button("Copy Link") { workspace.copyLink(to: message, in: channel) }
         if message.userID == workspace.account.userID {
             Divider()
-            Button("Edit…") { workspace.beginEdit(message, in: channel) }
+            Button("Edit…") { window.editing = MessageEdit(message, in: channel) }
             Button("Delete…", role: .destructive) { confirmingDelete = true }
         }
     }

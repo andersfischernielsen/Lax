@@ -21,24 +21,12 @@ final class WorkspaceModel: Identifiable {
     private(set) var muted: Set<String> = []
     private(set) var status: RealTimeUpdate.Status = .connecting
     private(set) var loadingHistory: Set<String> = []
-    private(set) var selectedConversationID: SlackConversation.ID?
     /// Read position per conversation as it was when opened; the "New" line goes after it.
     private(set) var unreadMarkers: [String: String] = [:]
-    /// The thread shown beside the conversation, if any.
-    private(set) var openThread: ThreadRef?
     private(set) var threads: [ThreadRef: Timeline] = [:]
     var drafts: [String: String] = [:]
     /// Pinned messages per conversation, loaded when asked for.
     private(set) var pinned: [String: [SlackMessage]] = [:]
-    var searchQuery = ""
-    /// Results of the last search; nil when not searching.
-    private(set) var searchResults: [SearchResult]?
-    /// The display name being edited, shown in a sheet.
-    var editingDisplayName: String?
-    /// A message the reaction picker is open for.
-    var reactingTo: ReactionTarget?
-    /// A message being edited, shown in a sheet.
-    var editing: MessageEdit?
     var errorMessage: String?
 
     @ObservationIgnored private let client: SlackAPIClient
@@ -51,6 +39,8 @@ final class WorkspaceModel: Identifiable {
     @ObservationIgnored private let images = NSCache<NSURL, NSImage>()
     @ObservationIgnored private var mutePrefs = MutePrefs()
     @ObservationIgnored private var requestedEmoji: Set<String> = []
+    /// How many windows show each conversation; those are kept read.
+    @ObservationIgnored private var visible: [String: Int] = [:]
 
     nonisolated var id: SlackAccount.ID { account.id }
 
@@ -62,8 +52,13 @@ final class WorkspaceModel: Identifiable {
 
     private var lastConversationKey: String { "lastConversation.\(account.id)" }
 
-    var selectedConversation: SlackConversation? {
-        conversations.first { $0.id == selectedConversationID }
+    func conversation(_ id: SlackConversation.ID?) -> SlackConversation? {
+        conversations.first { $0.id == id }
+    }
+
+    /// The conversation last opened in any window, for new windows to start with.
+    var lastConversationID: SlackConversation.ID? {
+        UserDefaults.standard.string(forKey: lastConversationKey)
     }
 
     func start() {
@@ -84,11 +79,12 @@ final class WorkspaceModel: Identifiable {
         tasks = []
     }
 
-    func select(_ conversationID: SlackConversation.ID?) {
-        selectedConversationID = conversationID
-        UserDefaults.standard.set(conversationID, forKey: lastConversationKey)
-        guard let channel = conversationID else { return }
-        if openThread?.channel != channel { openThread = nil }
+    /// A window started showing the conversation: load it and keep it read.
+    func show(_ channel: String) {
+        visible[channel, default: 0] += 1
+        UserDefaults.standard.set(channel, forKey: lastConversationKey)
+        // Already on screen elsewhere: keep that window's "New" line.
+        guard visible[channel] == 1 else { return }
         unread.read(channel)
         if timelines[channel] == nil { loadOlder(in: channel) }
 
@@ -102,10 +98,18 @@ final class WorkspaceModel: Identifiable {
         }
     }
 
-    /// Marks the open conversation read up to its newest message, while Lax is in front.
+    func hide(_ channel: String) {
+        visible[channel, default: 1] -= 1
+        if visible[channel] == 0 { visible[channel] = nil }
+    }
+
+    /// Marks conversations on screen read up to their newest message, while Lax is in front.
     func markReadIfVisible(_ channel: String? = nil) {
-        guard let channel = channel ?? selectedConversationID,
-              channel == selectedConversationID,
+        for channel in channel.map({ [$0] }) ?? Array(visible.keys) { markRead(channel) }
+    }
+
+    private func markRead(_ channel: String) {
+        guard visible[channel] != nil,
               readPositionKnown.contains(channel),
               NSApplication.shared.isActive,
               let newest = timelines[channel]?.newestTS,
@@ -161,11 +165,6 @@ final class WorkspaceModel: Identifiable {
     private func loadConversations() async {
         do {
             conversations = try await client.conversations()
-            if selectedConversationID == nil,
-               let last = UserDefaults.standard.string(forKey: lastConversationKey),
-               conversations.contains(where: { $0.id == last }) {
-                select(last)
-            }
             requestUsers(Set(conversations.compactMap(\.userID)))
             await loadGroupMembers()
         } catch {
@@ -308,14 +307,13 @@ final class WorkspaceModel: Identifiable {
         }
     }
 
-    func beginEditingDisplayName() {
-        editingDisplayName = users[account.userID]?.displayName ?? ""
+    var ownDisplayName: String {
+        users[account.userID]?.displayName ?? ""
     }
 
     /// Saves the display name; the profile change arrives as a `user_change` event too.
-    func saveDisplayName() {
-        guard let name = editingDisplayName?.trimmingCharacters(in: .whitespaces) else { return }
-        editingDisplayName = nil
+    func saveDisplayName(_ name: String) {
+        let name = name.trimmingCharacters(in: .whitespaces)
         Task {
             do {
                 try await client.setDisplayName(name)
@@ -328,43 +326,21 @@ final class WorkspaceModel: Identifiable {
 
     // MARK: - Search
 
-    func search() {
-        let query = searchQuery.trimmingCharacters(in: .whitespaces)
-        guard !query.isEmpty else { return clearSearch() }
-        Task {
-            do {
-                let results = try await client.searchMessages(query)
-                searchResults = results
-                requestNames(for: results.map(\.message))
-            } catch {
-                errorMessage = "Search failed (\(error))."
-            }
-        }
-    }
-
-    func clearSearch() {
-        searchResults = nil
-    }
-
-    /// Opens the result's conversation, and its thread if it's a reply.
-    func open(_ result: SearchResult) {
-        clearSearch()
-        searchQuery = ""
-        select(result.channelID)
-        if let thread = result.message.threadTS, thread != result.message.ts {
-            openThread(thread, in: result.channelID)
+    /// Messages matching `query`, newest first; nil if the search failed.
+    func search(_ query: String) async -> [SearchResult]? {
+        do {
+            let results = try await client.searchMessages(query)
+            requestNames(for: results.map(\.message))
+            return results
+        } catch {
+            errorMessage = "Search failed (\(error))."
+            return nil
         }
     }
 
     // MARK: - Message actions
 
-    func beginEdit(_ message: SlackMessage, in channel: String) {
-        editing = MessageEdit(channel: channel, ts: message.ts, text: SlackText.editable(message.text))
-    }
-
-    func saveEdit() {
-        guard let edit = editing else { return }
-        editing = nil
+    func saveEdit(_ edit: MessageEdit) {
         let text = edit.text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         Task {
@@ -407,22 +383,16 @@ final class WorkspaceModel: Identifiable {
 
     // MARK: - Threads
 
-    func openThread(_ ts: String, in channel: String) {
-        let ref = ThreadRef(channel: channel, ts: ts)
-        openThread = ref
-        Task {
-            do {
-                let messages = try await client.replies(channel: channel, threadTS: ts)
-                threads[ref] = Timeline(thread: ts, messages: messages)
-                requestNames(for: messages)
-            } catch {
-                errorMessage = "Couldn't load the thread (\(error))."
-            }
+    /// Fetches the whole thread; it's kept current from then on.
+    func loadThread(_ ref: ThreadRef) async {
+        do {
+            let messages = try await client.replies(channel: ref.channel, threadTS: ref.ts)
+            threads[ref] = Timeline(thread: ref.ts, messages: messages)
+            requestNames(for: messages)
+        } catch is CancellationError {
+        } catch {
+            errorMessage = "Couldn't load the thread (\(error))."
         }
-    }
-
-    func closeThread() {
-        openThread = nil
     }
 
     /// Applies a change to a conversation and to any of its threads that are loaded.
@@ -477,7 +447,7 @@ final class WorkspaceModel: Identifiable {
             update(channel) { _ = $0.upsert(message) }
             if let user = message.userID { typing.clear(userID: user, in: channel) }
             if let conversation = conversations.first(where: { $0.id == channel }) {
-                let isOpen = channel == selectedConversationID && NSApplication.shared.isActive
+                let isOpen = visible[channel] != nil && NSApplication.shared.isActive
                 unread.received(message, in: conversation, ownUserID: account.userID, isOpen: isOpen)
             }
             requestNames(for: [message])
@@ -519,6 +489,12 @@ struct MessageEdit: Identifiable {
     let channel: String
     let ts: String
     var text: String
+
+    init(_ message: SlackMessage, in channel: String) {
+        self.channel = channel
+        ts = message.ts
+        text = SlackText.editable(message.text)
+    }
 
     var id: String { "\(channel)/\(ts)" }
 }

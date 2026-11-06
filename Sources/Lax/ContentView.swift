@@ -2,17 +2,23 @@ import LaxKit
 import SwiftUI
 
 struct ContentView: View {
-    @Bindable var model: AppModel
+    let model: AppModel
+    @State private var window = WindowModel()
+    // Restored per window when Lax relaunches.
+    @SceneStorage("account") private var storedAccount: String?
+    @SceneStorage("conversation") private var storedConversation: String?
 
     var body: some View {
+        @Bindable var window = window
+        let workspace = model.workspace(window.accountID)
         NavigationSplitView {
-            SidebarView(model: model)
+            SidebarView(model: model, workspace: workspace)
                 .navigationSplitViewColumnWidth(min: 200, ideal: 250)
         } detail: {
-            if let workspace = model.currentWorkspace {
-                if let results = workspace.searchResults {
+            if let workspace {
+                if let results = window.searchResults {
                     SearchResultsView(workspace: workspace, results: results)
-                } else if let conversation = workspace.selectedConversation {
+                } else if let conversation = workspace.conversation(window.conversationID) {
                     ConversationView(workspace: workspace, conversation: conversation)
                         .id(conversation.id)
                 } else {
@@ -25,51 +31,78 @@ struct ContentView: View {
                 } description: {
                     Text("Sign in with your usual Slack login, SSO included.")
                 } actions: {
-                    Button("Add Workspace…") { model.beginSignIn() }
+                    Button("Add Workspace…") { window.beginSignIn(with: model) }
                 }
             }
         }
-        .searchable(text: searchQuery, placement: .toolbar, prompt: "Search messages")
-        .onSubmit(of: .search) { model.currentWorkspace?.search() }
+        // On the split view, not the detail, so the inspector gets the full window height.
+        .inspector(isPresented: $window.showsInspector) {
+            Group {
+                if let workspace, let thread = window.thread {
+                    ThreadView(workspace: workspace, thread: thread).id(thread)
+                } else {
+                    ContentUnavailableView("No Thread", systemImage: "bubble.left.and.text.bubble.right",
+                                           description: Text("Choose Reply in Thread on a message to see its replies here."))
+                }
+            }
+            .inspectorColumnWidth(min: 300, ideal: 380, max: 560)
+            .toolbar {
+                Spacer()
+                Button("Thread", systemImage: "sidebar.trailing") { window.showsInspector.toggle() }
+                    .help(window.showsInspector ? "Hide the thread" : "Show the thread")
+            }
+        }
+        .environment(window)
+        .focusedSceneValue(window)
+        .searchable(text: $window.searchQuery, placement: .toolbar, prompt: "Search messages")
+        .onSubmit(of: .search) { search(in: workspace) }
+        .onChange(of: window.searchQuery) { _, query in if query.isEmpty { window.clearSearch() } }
         .sheet(isPresented: editingDisplayName) {
-            DisplayNameView(name: displayName, save: { model.currentWorkspace?.saveDisplayName() },
-                            cancel: { model.currentWorkspace?.editingDisplayName = nil })
+            DisplayNameView(name: displayName, save: {
+                if let name = window.editingDisplayName { workspace?.saveDisplayName(name) }
+                window.editingDisplayName = nil
+            }, cancel: { window.editingDisplayName = nil })
         }
-        .sheet(item: $model.signIn) { controller in
-            SignInView(controller: controller, cancel: model.cancelSignIn)
+        .sheet(item: $window.signIn) { controller in
+            SignInView(controller: controller, cancel: { window.signIn = nil })
         }
-        .alert("Something went wrong", isPresented: errorBinding) {
-            Button("OK") { clearErrors() }
+        .alert("Something went wrong", isPresented: errorBinding(workspace)) {
+            Button("OK") { clearErrors(workspace) }
         } message: {
-            Text(model.errorMessage ?? model.currentWorkspace?.errorMessage ?? "")
+            Text(model.errorMessage ?? workspace?.errorMessage ?? "")
         }
+        .task {
+            window.accountID = storedAccount
+            window.conversationID = storedConversation ?? workspace?.lastConversationID
+        }
+        .onChange(of: window.accountID) { _, id in storedAccount = id }
+        .onChange(of: window.conversationID) { _, id in storedConversation = id }
     }
 
-    private var searchQuery: Binding<String> {
-        Binding(get: { model.currentWorkspace?.searchQuery ?? "" },
-                set: { query in
-                    model.currentWorkspace?.searchQuery = query
-                    if query.isEmpty { model.currentWorkspace?.clearSearch() }
-                })
+    private func search(in workspace: WorkspaceModel?) {
+        let query = window.searchQuery.trimmingCharacters(in: .whitespaces)
+        guard let workspace, !query.isEmpty else { return window.clearSearch() }
+        Task {
+            if let results = await workspace.search(query) { window.searchResults = results }
+        }
     }
 
     private var editingDisplayName: Binding<Bool> {
-        Binding(get: { model.currentWorkspace?.editingDisplayName != nil },
-                set: { if !$0 { model.currentWorkspace?.editingDisplayName = nil } })
+        Binding(get: { window.editingDisplayName != nil },
+                set: { if !$0 { window.editingDisplayName = nil } })
     }
 
     private var displayName: Binding<String> {
-        Binding(get: { model.currentWorkspace?.editingDisplayName ?? "" },
-                set: { model.currentWorkspace?.editingDisplayName = $0 })
+        Binding(get: { window.editingDisplayName ?? "" }, set: { window.editingDisplayName = $0 })
     }
 
-    private var errorBinding: Binding<Bool> {
-        Binding(get: { model.errorMessage != nil || model.currentWorkspace?.errorMessage != nil },
-                set: { if !$0 { clearErrors() } })
+    private func errorBinding(_ workspace: WorkspaceModel?) -> Binding<Bool> {
+        Binding(get: { model.errorMessage != nil || workspace?.errorMessage != nil },
+                set: { if !$0 { clearErrors(workspace) } })
     }
 
-    private func clearErrors() {
+    private func clearErrors(_ workspace: WorkspaceModel?) {
         model.errorMessage = nil
-        model.currentWorkspace?.errorMessage = nil
+        workspace?.errorMessage = nil
     }
 }

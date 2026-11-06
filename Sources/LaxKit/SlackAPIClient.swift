@@ -75,6 +75,24 @@ public struct SlackAPIClient: Sendable {
         return data
     }
 
+    /// Sends a file's bytes to an upload URL Slack handed out. The URL carries its own
+    /// authorization, so neither the token nor the cookie goes with it.
+    func upload(_ file: URL, to url: URL) async throws {
+        guard Self.isSlackHost(url) else { throw URLError(.unsupportedURL) }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.httpShouldHandleCookies = false
+        let response: URLResponse
+        do {
+            (_, response) = try await session.upload(for: request, fromFile: file)
+        } catch {
+            throw Self.normalized(error)
+        }
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw SlackAPIError.http(status: (response as? HTTPURLResponse)?.statusCode ?? 0)
+        }
+    }
+
     /// Headers for loading a Slack-hosted file outside `download`, such as streaming a video:
     /// the session cookie. Nil for any other host, so the cookie never leaves Slack.
     public func fileHeaders(for url: URL) -> [String: String]? {

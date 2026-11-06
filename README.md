@@ -37,9 +37,6 @@
 | <img src="docs/screenshots/search.png" alt="Search" /> | <img src="docs/screenshots/bot.png" alt="Bot messages and buttons" /> | <img src="docs/screenshots/video.png" alt="Video" /> |
 | <img src="docs/screenshots/emoji-picker.png" alt="Emoji picker" /> | <img src="docs/screenshots/settings.png" alt="Settings" /> | <img src="docs/screenshots/light.png" alt="Light mode" /> |
 
-The people and conversations are a made-up workspace (`-demo`); `scripts/screenshots.sh`
-retakes every screenshot.
-
 ## Download
 
 Builds of `main` are published on the [Releases](../../releases) page.

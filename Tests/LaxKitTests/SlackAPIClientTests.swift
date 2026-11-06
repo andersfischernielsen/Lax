@@ -53,3 +53,15 @@ private let credentials = SlackCredentials(
         try SlackAPIClient.decode(AuthTestResponse.self, from: Data("<html>".utf8))
     }
 }
+
+@Test(arguments: [
+    ("https://files.slack.com/files-pri/T1-F1/a.png", true),
+    ("https://acme.slack.com/files/U1/F1", true),
+    ("https://avatars.slack-edge.com/a.png", true),
+    ("http://files.slack.com/a.png", false),
+    ("https://files.slack.com.evil.io/a.png", false),
+    ("https://notslack.com/a.png", false),
+])
+func cookiesOnlyGoToSlackHosts(_ url: String, _ allowed: Bool) {
+    #expect(SlackAPIClient.isSlackHost(URL(string: url)!) == allowed)
+}

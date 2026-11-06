@@ -57,3 +57,14 @@ private func decode(_ json: String) throws -> SlackMessage {
     #expect(message.files[1].preview == nil)
     #expect(message.files[1].prettyType == "PDF")
 }
+
+@Test func previewsFitWithoutEnlarging() throws {
+    let message = try decode(#"""
+        {"ts":"1.0","text":"","files":[{"id":"F1","name":"a.png","mimetype":"image/png",
+         "thumb_720":"https://files.slack.com/a_720.png","thumb_720_w":720,"thumb_720_h":360}]}
+        """#)
+    let preview = try #require(message.files.first?.preview)
+    #expect(preview.fitted(maxWidth: 360, maxHeight: 300) == (360, 180))
+    #expect(preview.fitted(maxWidth: 1000, maxHeight: 1000) == (720, 360))
+    #expect(preview.fitted(maxWidth: 360, maxHeight: 90) == (180, 90))
+}

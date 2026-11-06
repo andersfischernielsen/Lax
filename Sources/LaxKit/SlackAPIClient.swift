@@ -41,6 +41,28 @@ public struct SlackAPIClient: Sendable {
         }
     }
 
+    /// Downloads a file Slack hosts (e.g. `url_private`, thumbnails) with the session cookie.
+    /// Refuses other hosts so the cookie never leaves Slack.
+    public func download(_ url: URL) async throws -> Data {
+        guard Self.isSlackHost(url) else { throw URLError(.unsupportedURL) }
+        var request = URLRequest(url: url)
+        request.httpShouldHandleCookies = false
+        if let cookie = credentials.cookieHeader {
+            request.setValue(cookie, forHTTPHeaderField: "Cookie")
+        }
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw SlackAPIError.http(status: (response as? HTTPURLResponse)?.statusCode ?? 0)
+        }
+        return data
+    }
+
+    /// HTTPS on `slack.com`, `slack-edge.com` or `slack-files.com`, or a subdomain of them.
+    static func isSlackHost(_ url: URL) -> Bool {
+        guard url.scheme == "https", let host = url.host?.lowercased() else { return false }
+        return ["slack.com", "slack-edge.com", "slack-files.com"].contains { host == $0 || host.hasSuffix("." + $0) }
+    }
+
     public func makeRequest(_ method: String, _ params: [String: String] = [:]) -> URLRequest {
         var request = URLRequest(url: URL(string: "https://\(credentials.workspaceDomain)/api/\(method)")!)
         request.httpMethod = "POST"

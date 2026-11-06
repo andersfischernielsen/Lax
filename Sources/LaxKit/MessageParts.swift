@@ -49,6 +49,13 @@ public struct SlackFile: Decodable, Hashable, Identifiable, Sendable {
         public let url: URL
         public let width: Int
         public let height: Int
+
+        /// Display size within a box, keeping the aspect ratio and never enlarging.
+        public func fitted(maxWidth: Double, maxHeight: Double) -> (width: Double, height: Double) {
+            guard width > 0, height > 0 else { return (0, 0) }
+            let scale = min(1, maxWidth / Double(width), maxHeight / Double(height))
+            return ((Double(width) * scale).rounded(), (Double(height) * scale).rounded())
+        }
     }
 
     public let id: String

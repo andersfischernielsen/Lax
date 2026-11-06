@@ -37,6 +37,8 @@ final class WindowModel {
     /// The thread in the inspector, which is always shown beside conversations.
     var thread: ThreadRef?
     var showsQuickSwitcher = false
+    /// What Open Quickly starts with, usually nothing.
+    var quickSwitcherQuery = ""
     /// A message to scroll to and select once its conversation shows, from search.
     var reveal: ThreadRef?
     /// `ts` of the message highlighted in the conversation.

@@ -28,6 +28,7 @@ struct LaxApp: App {
         }
         // A window on every launch, even when the last session ended with none open.
         .defaultLaunchBehavior(.presented)
+        .defaultSize(width: 1280, height: 800)
         .commands {
             // View ▸ Show/Hide Sidebar, ⌃⌘S.
             SidebarCommands()
@@ -54,6 +55,7 @@ private struct WorkspaceCommands: Commands {
     @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
+        let _ = AppDelegate.openMainWindow = { [openWindow] in openWindow(id: "main") }
         CommandGroup(after: .newItem) {
             // As in Safari and Finder: a new window, as a tab of the one in front.
             Button("New Tab") {
@@ -153,18 +155,22 @@ private struct GoCommands: Commands {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// SwiftUI's way to open the main window, handed over by the menu commands, which exist
+    /// even when no window does.
+    @MainActor static var openMainWindow: (() -> Void)?
+
     /// Opens a window when Lax launches without one. A session that ended with every window
     /// closed restores as no windows, and that wins over `.defaultLaunchBehavior(.presented)`.
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Screenshots in light mode, whatever the Mac is set to.
+        if DemoSlack.isEnabled, CommandLine.arguments.contains("-demo-light") {
+            NSApplication.shared.appearance = NSAppearance(named: .aqua)
+        }
         // Once SwiftUI has restored or opened its windows.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             MainActor.assumeIsolated {
-                let app = NSApplication.shared
-                guard !app.windows.contains(where: { $0.isVisible && $0.canBecomeMain }),
-                      let newWindow = app.mainMenu?.items.compactMap(\.submenu).flatMap(\.items)
-                        .first(where: { $0.keyEquivalent == "n" && $0.keyEquivalentModifierMask == .command }),
-                      let action = newWindow.action else { return }
-                app.sendAction(action, to: newWindow.target, from: newWindow)
+                guard !NSApplication.shared.windows.contains(where: { $0.isVisible && $0.canBecomeMain }) else { return }
+                Self.openMainWindow?()
             }
         }
     }

@@ -24,6 +24,8 @@ private struct WindowContent: View {
     @Binding var storedConversation: String?
     @Binding var storedArea: WindowModel.Area
     @FocusState private var searchFocused: Bool
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
 
     init(model: AppModel, storedAccount: Binding<String?>, storedConversation: Binding<String?>,
          storedArea: Binding<WindowModel.Area>) {
@@ -36,6 +38,7 @@ private struct WindowContent: View {
         window.accountID = storedAccount.wrappedValue
         window.conversationID = storedConversation.wrappedValue
             ?? model.workspace(storedAccount.wrappedValue)?.lastConversationID
+        DemoScene.current?.prepare(window)
         _window = State(initialValue: window)
     }
 
@@ -99,7 +102,7 @@ private struct WindowContent: View {
                 ZStack(alignment: .top) {
                     // A click beside the panel closes it, as with Spotlight.
                     Color.clear.contentShape(Rectangle()).onTapGesture { window.showsQuickSwitcher = false }
-                    QuickSwitcherView(workspace: workspace) { id in
+                    QuickSwitcherView(workspace: workspace, initialQuery: window.quickSwitcherQuery) { id in
                         window.showsQuickSwitcher = false
                         if let conversation = workspace.conversation(id) { window.show(conversation) }
                     } close: {
@@ -136,6 +139,10 @@ private struct WindowContent: View {
             Button("OK") { clearProblems(workspace) }
         } message: { problem in
             Text(problem.reason)
+        }
+        .task {
+            await DemoScene.current?.finish(window, workspace: { model.workspace(window.accountID) },
+                                            openWindow: openWindow, openSettings: openSettings)
         }
         .onChange(of: window.accountID) { _, id in storedAccount = id }
         .onChange(of: window.area) { _, area in storedArea = area }

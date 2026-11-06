@@ -4,6 +4,7 @@ import SwiftUI
 /// Go ▸ Open Quickly… (⌘K): type part of a name, then Return. Shaped like Xcode's Open Quickly.
 struct QuickSwitcherView: View {
     let workspace: WorkspaceModel
+    var initialQuery = ""
     let open: (SlackConversation.ID) -> Void
     let close: () -> Void
     @State private var query = ""
@@ -51,6 +52,7 @@ struct QuickSwitcherView: View {
         .onExitCommand(perform: close)
         // The best match is highlighted, so Return opens it.
         .onChange(of: query) { highlighted = matches.first }
+        .onAppear { if query.isEmpty { query = initialQuery } }
     }
 
     private var matches: [String] {

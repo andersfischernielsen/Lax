@@ -73,8 +73,12 @@ final class WorkspaceModel: Identifiable {
 
     nonisolated var id: SlackAccount.ID { account.id }
 
-    init(account: SlackAccount, session: URLSession = .shared) {
+    /// False for the demo workspace: no real-time connection, and nothing is marked read.
+    @ObservationIgnored private let isLive: Bool
+
+    init(account: SlackAccount, session: URLSession = .shared, isLive: Bool = true) {
         self.account = account
+        self.isLive = isLive
         client = SlackAPIClient(credentials: account.credentials, session: session)
         connection = RealTimeConnection(client: client, session: session)
     }
@@ -98,9 +102,9 @@ final class WorkspaceModel: Identifiable {
             Task { await loadUnreadCounts() },
             Task { await loadMutePrefs() },
             Task { await loadCustomEmoji() },
-            Task { await listen() },
             Task { requestUsers([account.userID]) },
         ]
+        if isLive { tasks.append(Task { await listen() }) } else { status = .connected }
     }
 
     func stop() {
@@ -156,7 +160,7 @@ final class WorkspaceModel: Identifiable {
 
     /// Waits briefly for scrolling to settle, so passing many messages sends one update.
     private func markRead(_ channel: String) {
-        guard visible[channel] != nil,
+        guard isLive, visible[channel] != nil,
               readPositionKnown.contains(channel),
               NSApplication.shared.isActive,
               let seen = seenTS[channel],

@@ -111,3 +111,72 @@ struct Failable<Value: Decodable>: Decodable {
         value = try? Value(from: decoder)
     }
 }
+
+/// A legacy message attachment: the boxes with a coloured bar that bots and link previews use.
+public struct SlackAttachment: Decodable, Hashable, Sendable {
+    public struct Field: Decodable, Hashable, Sendable {
+        public let title: String
+        public let value: String
+        /// Fits beside another short field.
+        public let isShort: Bool
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: Keys.self)
+            title = try c.decodeIfPresent(String.self, forKey: .title) ?? ""
+            value = try c.decodeIfPresent(String.self, forKey: .value) ?? ""
+            isShort = try c.decodeIfPresent(Bool.self, forKey: .short) ?? false
+        }
+
+        private enum Keys: String, CodingKey { case title, value, short }
+    }
+
+    /// Colour components in 0…1.
+    public struct Color: Hashable, Sendable {
+        public let red: Double
+        public let green: Double
+        public let blue: Double
+
+        /// `#RRGGBB`, `RRGGBB`, or Slack's names `good`, `warning`, `danger`.
+        init?(_ value: String) {
+            let named = ["good": "2EB67D", "warning": "ECB22E", "danger": "E01E5A"]
+            let hex = named[value] ?? String(value.trimmingPrefix("#"))
+            guard hex.count == 6, let rgb = UInt32(hex, radix: 16) else { return nil }
+            red = Double(rgb >> 16 & 0xFF) / 255
+            green = Double(rgb >> 8 & 0xFF) / 255
+            blue = Double(rgb & 0xFF) / 255
+        }
+    }
+
+    public let color: Color?
+    public let pretext: String?
+    public let authorName: String?
+    public let title: String?
+    public let titleLink: URL?
+    /// Body markup: the text, else the attachment's blocks, else its plain fallback.
+    public let body: String?
+    public let fields: [Field]
+    public let footer: String?
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: Keys.self)
+        color = try c.decodeIfPresent(String.self, forKey: .color).flatMap(Color.init)
+        pretext = try c.decodeIfPresent(String.self, forKey: .pretext)?.nilIfEmpty
+        authorName = try c.decodeIfPresent(String.self, forKey: .authorName)?.nilIfEmpty
+        title = try c.decodeIfPresent(String.self, forKey: .title)?.nilIfEmpty
+        titleLink = try c.decodeIfPresent(String.self, forKey: .titleLink).flatMap(URL.init(string:))
+        fields = try c.decodeIfPresent([Failable<Field>].self, forKey: .fields)?.compactMap(\.value) ?? []
+        footer = try c.decodeIfPresent(String.self, forKey: .footer)?.nilIfEmpty
+        let text = try c.decodeIfPresent(String.self, forKey: .text)?.nilIfEmpty
+        let blocks = try c.decodeIfPresent([JSONValue].self, forKey: .blocks).map(BlockKit.markup)?.nilIfEmpty
+        let fallback = try c.decodeIfPresent(String.self, forKey: .fallback)?.nilIfEmpty
+        // The fallback repeats the rest in plain text; show it only when there is nothing else.
+        let hasOtherContent = pretext != nil || title != nil || !fields.isEmpty
+        body = text ?? blocks ?? (hasOtherContent ? nil : fallback)
+    }
+
+    private enum Keys: String, CodingKey {
+        case color, pretext, title, text, fields, footer, fallback, blocks
+        case authorName = "author_name"
+        case titleLink = "title_link"
+    }
+}

@@ -17,17 +17,25 @@
 ## Features
 
 * Written in Swift and SwiftUI for macOS 27, with standard Mac controls, menus and shortcuts
-* Fast: native lists, cached formatting and images, and no web view once you're signed in
-* Sign in with your usual Slack login, SSO and 2FA included; several workspaces at once
+* Native lists, formatting and images, and no web view once signed in to ensure performance
+* Sign in with your usual Slack login, SSO and 2FA included across several workspaces at once
 * Channels, direct messages and followed threads, each in its own window or tab
-* Threads open beside the conversation; search jumps straight to the message
+* Threads open beside the conversation and search jumps straight to messages
 * Rich text composer with ⌘B, ⌘I, ⇧⌘X and ⇧⌘C, and autocomplete for `@people`, `#channels` and `:emoji:`
 * Custom and animated emoji everywhere, reactions, GIFs and videos
 * Bot messages with Block Kit layouts and buttons, and slash commands
 * Read state that follows what you've actually scrolled past, with unread messages marked
 * A Slack-style badge on the Dock icon instead of notifications
 * Open Quickly (⌘K), back and forward (⌘[ / ⌘]), and a keyboard shortcut for every message action
-* VoiceOver labels and a Liquid Glass icon
+
+## Screenshots
+
+<p align="center">
+<img src="docs/screenshots/collage.png" alt="Lax: a channel, a thread, direct messages, followed threads, Open Quickly, the composer with suggestions, search, a bot message with buttons, a video, the emoji picker, Settings and light mode" />
+</p>
+
+The people and conversations are a made-up workspace (`-demo`); `scripts/screenshots.sh`
+retakes every screenshot.
 
 ## Download
 
@@ -80,7 +88,11 @@ swift build          # debug build
 swift test           # run the tests
 swift run Lax        # run the app without bundling
 scripts/bundle.sh    # release build, wrapped as build/Lax.app
+scripts/screenshots.sh  # the README screenshots, from the demo workspace
 ```
+
+`build/Lax.app --args -demo` opens a made-up workspace that needs no Slack account, for
+trying Lax out and for screenshots.
 
 The code is in two parts:
 

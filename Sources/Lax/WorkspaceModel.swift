@@ -83,8 +83,7 @@ final class WorkspaceModel: Identifiable {
 
     /// The conversation last opened in any window, for new windows to start with.
     var lastConversationID: SlackConversation.ID? {
-        // UI tests start from a clean slate every launch.
-        UITestingSlack.isEnabled ? nil : UserDefaults.standard.string(forKey: lastConversationKey)
+        UserDefaults.standard.string(forKey: lastConversationKey)
     }
 
     func start() {

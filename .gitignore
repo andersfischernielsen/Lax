@@ -2,5 +2,3 @@
 .build/
 .swiftpm/
 build/
-xcuserdata/
-*.xcworkspace/xcuserdata/

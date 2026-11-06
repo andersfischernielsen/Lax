@@ -68,10 +68,6 @@ final class AppModel {
     /// permission first, and the app must stay responsive meanwhile.
     func load() async {
         defer { hasLoaded = true }
-        guard !UITestingSlack.isEnabled else {
-            accounts = [UITestingSlack.account]
-            return syncWorkspaces()
-        }
         let store = store
         do {
             accounts = try await Task.detached { try store.loadAll() }.value
@@ -122,9 +118,7 @@ final class AppModel {
             workspaces[id] = nil
         }
         for account in accounts where workspaces[account.id] == nil {
-            let workspace = UITestingSlack.isEnabled
-                ? WorkspaceModel(account: account, session: UITestingSlack.session)
-                : WorkspaceModel(account: account)
+            let workspace = WorkspaceModel(account: account)
             workspaces[account.id] = workspace
             workspace.start()
         }

@@ -5,6 +5,7 @@ struct SidebarView: View {
     let model: AppModel
     let workspace: WorkspaceModel?
     @Environment(WindowModel.self) private var window
+    @State private var signingOut: SlackAccount?
 
     var body: some View {
         Group {
@@ -19,6 +20,13 @@ struct SidebarView: View {
         }
         .safeAreaInset(edge: .bottom) {
             if let workspace { ConnectionStatusView(status: workspace.status) }
+        }
+        .confirmationDialog("Sign out of \(signingOut?.teamName ?? "the workspace")?",
+                            isPresented: Binding(get: { signingOut != nil }, set: { if !$0 { signingOut = nil } }),
+                            presenting: signingOut) { account in
+            Button("Sign Out", role: .destructive) { model.signOut(of: account) }
+        } message: { _ in
+            Text("Lax forgets this workspace's session. You can sign in again at any time.")
         }
     }
 
@@ -36,7 +44,7 @@ struct SidebarView: View {
                 Button("Set Display Name…") { window.editingDisplayName = workspace.ownDisplayName }
             }
             if let account = workspace?.account {
-                Button("Sign Out of \(account.teamName)", role: .destructive) { model.signOut(of: account) }
+                Button("Sign Out of \(account.teamName)…", role: .destructive) { signingOut = account }
             }
         } label: {
             Label(workspace?.account.teamName ?? "Workspaces", systemImage: "building.2")

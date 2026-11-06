@@ -22,15 +22,28 @@ struct SidebarView: View {
         }
         // Switches what the sidebar lists, like Xcode's navigator bar.
         .safeAreaInset(edge: .top) {
-            Picker("View", selection: $window.area) {
-                ForEach(WindowModel.Area.allCases) { area in
-                    Label(area.title, systemImage: area.systemImage).tag(area)
+            let areas = WindowModel.Area.allCases
+            SegmentedSwitcher(
+                segments: areas.map { .init(title: $0.title, systemImage: $0.systemImage) },
+                selection: Binding(get: { areas.firstIndex(of: window.area) ?? 0 },
+                                   set: { if areas.indices.contains($0) { window.area = areas[$0] } }))
+            // A red dot on each segment with something unread. Stretched, the segments share
+            // the width equally, so equal cells line up with them.
+            .overlay {
+                HStack(spacing: 0) {
+                    ForEach(WindowModel.Area.allCases) { area in
+                        Color.clear.overlay(alignment: .topTrailing) {
+                            if workspace?.hasUnreads(in: area) ?? false {
+                                Circle().fill(.red).frame(width: 7, height: 7).offset(x: -6, y: 3)
+                            }
+                        }
+                    }
                 }
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
             }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("area-picker")
-            .labelStyle(.iconOnly)
-            .labelsHidden()
+            .accessibilityValue(WindowModel.Area.allCases.filter { workspace?.hasUnreads(in: $0) ?? false }
+                .map { "Unread in \($0.title)" }.joined(separator: ", "))
             .padding(.horizontal, 10)
             .padding(.bottom, 6)
         }

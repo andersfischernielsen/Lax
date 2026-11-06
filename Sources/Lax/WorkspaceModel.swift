@@ -199,6 +199,16 @@ final class WorkspaceModel: Identifiable {
         }
     }
 
+    /// Something unread in a view: a conversation of its kind worth opening, or for Threads,
+    /// unread replies.
+    func hasUnreads(in area: WindowModel.Area) -> Bool {
+        switch area {
+        case .channels: conversations.contains { !$0.isDirect && isUnread($0.id) }
+        case .directMessages: conversations.contains { $0.isDirect && isUnread($0.id) }
+        case .threads: threadsUnread.hasUnreads || threadsUnread.mentions > 0
+        }
+    }
+
     /// Worth opening: unread outside muted conversations, or a mention anywhere.
     func isUnread(_ id: String) -> Bool {
         let counts = unread[id]

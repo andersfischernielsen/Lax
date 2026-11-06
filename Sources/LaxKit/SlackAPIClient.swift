@@ -71,6 +71,13 @@ public struct SlackAPIClient: Sendable {
         return data
     }
 
+    /// Headers for loading a Slack-hosted file outside `download`, such as streaming a video:
+    /// the session cookie. Nil for any other host, so the cookie never leaves Slack.
+    public func fileHeaders(for url: URL) -> [String: String]? {
+        guard Self.isSlackHost(url) else { return nil }
+        return credentials.cookieHeader.map { ["Cookie": $0] } ?? [:]
+    }
+
     /// HTTPS on `slack.com`, `slack-edge.com` or `slack-files.com`, or a subdomain of them.
     static func isSlackHost(_ url: URL) -> Bool {
         guard url.scheme == "https", let host = url.host?.lowercased() else { return false }

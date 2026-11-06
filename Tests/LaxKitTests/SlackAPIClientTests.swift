@@ -70,3 +70,10 @@ func cookiesOnlyGoToSlackHosts(_ url: String, _ allowed: Bool) {
     #expect(SlackAPIClient.normalized(URLError(.cancelled)) is CancellationError)
     #expect(SlackAPIClient.normalized(URLError(.timedOut)) is URLError)
 }
+
+@Test func fileHeadersCarryTheCookieOnlyToSlack() {
+    let client = SlackAPIClient(credentials: credentials)
+    #expect(client.fileHeaders(for: URL(string: "https://files.slack.com/v.mp4")!) == ["Cookie": "d=abc%2F; d-s=42"])
+    #expect(client.fileHeaders(for: URL(string: "https://example.com/v.mp4")!) == nil)
+    #expect(client.fileHeaders(for: URL(string: "http://files.slack.com/v.mp4")!) == nil)
+}

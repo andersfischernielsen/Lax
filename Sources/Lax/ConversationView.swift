@@ -46,6 +46,10 @@ struct ConversationView: View {
                         .messageListRow(selectable: true)
                         .tag(message.ts)
                         .id(message.ts)
+                        // Read once at least half of it has been on screen.
+                        .onScrollVisibilityChange(threshold: 0.5) { visible in
+                            if visible { workspace.saw(message.ts, in: conversation.id) }
+                        }
                 }
             }
             .listStyle(.plain)

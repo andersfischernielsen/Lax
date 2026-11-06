@@ -47,6 +47,9 @@ final class WorkspaceModel: Identifiable {
     @ObservationIgnored private var requestedUsers: Set<String> = []
     @ObservationIgnored private var readPositionKnown: Set<String> = []
     @ObservationIgnored private var markedReadTS: [String: String] = [:]
+    /// The newest message that has been on screen, per conversation.
+    @ObservationIgnored private var seenTS: [String: String] = [:]
+    @ObservationIgnored private var markReadTasks: [String: Task<Void, Never>] = [:]
     @ObservationIgnored private let images = NSCache<NSURL, NSImage>()
     @ObservationIgnored private var mutePrefs = MutePrefs()
     @ObservationIgnored private var requestedEmoji: Set<String> = []
@@ -98,23 +101,36 @@ final class WorkspaceModel: Identifiable {
         tasks = []
     }
 
-    /// A window started showing the conversation: load it and keep it read.
+    /// A window started showing the conversation: load it. Messages are marked read as
+    /// they scroll into view (`saw`).
     func show(_ channel: String) {
         visible[channel, default: 0] += 1
         UserDefaults.standard.set(channel, forKey: lastConversationKey)
         // Already on screen elsewhere: keep that window's "New" line.
         guard visible[channel] == 1 else { return }
-        unread.read(channel)
         if timelines[channel] == nil { loadOlder(in: channel) }
 
         // Read the old position before marking anything read, or the marker would vanish.
         readPositionKnown.remove(channel)
         unreadMarkers[channel] = nil
         Task {
-            unreadMarkers[channel] = try? await client.lastRead(channel: channel)
+            let lastRead = try? await client.lastRead(channel: channel)
+            unreadMarkers[channel] = lastRead
+            // Never move the read position back by seeing older messages.
+            if let lastRead { markedReadTS[channel] = SlackTimestamp.later(markedReadTS[channel], lastRead) }
             readPositionKnown.insert(channel)
             markReadIfVisible(channel)
         }
+    }
+
+    /// A message scrolled into view.
+    func saw(_ ts: String, in channel: String) {
+        let seen = SlackTimestamp.later(seenTS[channel], ts)
+        if seen != seenTS[channel] { Log.workspace.debug("read position on screen moved forward") }
+        seenTS[channel] = seen
+        // Caught up: clear the badge at once; Slack hears about it after a pause.
+        if seenTS[channel] == timelines[channel]?.newestTS, NSApplication.shared.isActive { unread.read(channel) }
+        markReadIfVisible(channel)
     }
 
     func hide(_ channel: String) {
@@ -126,19 +142,26 @@ final class WorkspaceModel: Identifiable {
         timelines.update(channel) { $0 = $0.keepingNewest(50) }
     }
 
-    /// Marks conversations on screen read up to their newest message, while Lax is in front.
+    /// Marks conversations on screen read up to the newest message seen, while Lax is in front.
     func markReadIfVisible(_ channel: String? = nil) {
         for channel in channel.map({ [$0] }) ?? Array(visible.keys) { markRead(channel) }
     }
 
+    /// Waits for scrolling to settle, so passing many messages sends one update.
     private func markRead(_ channel: String) {
         guard visible[channel] != nil,
               readPositionKnown.contains(channel),
               NSApplication.shared.isActive,
-              let newest = timelines[channel]?.newestTS,
-              markedReadTS[channel] != newest else { return }
-        markedReadTS[channel] = newest
-        Task { try? await client.markRead(channel: channel, ts: newest) }
+              let seen = seenTS[channel],
+              SlackTimestamp.isBefore(markedReadTS[channel] ?? "0", seen) else { return }
+        markReadTasks[channel]?.cancel()
+        markReadTasks[channel] = Task {
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled, let position = seenTS[channel],
+                  SlackTimestamp.isBefore(markedReadTS[channel] ?? "0", position) else { return }
+            markedReadTS[channel] = position
+            try? await client.markRead(channel: channel, ts: position)
+        }
     }
 
     // MARK: - Sidebar
@@ -584,8 +607,8 @@ final class WorkspaceModel: Identifiable {
             }
             if let user = message.userID { typing.update(channel) { $0.clear(userID: user, in: channel) } }
             if let conversation = conversations.first(where: { $0.id == channel }) {
-                let isOpen = visible[channel] != nil && NSApplication.shared.isActive
-                unread.received(message, in: conversation, ownUserID: account.userID, isOpen: isOpen)
+                // Unread until it scrolls into view, even in an open conversation.
+                unread.received(message, in: conversation, ownUserID: account.userID, isOpen: false)
             }
             requestNames(for: [message])
             markReadIfVisible(channel)

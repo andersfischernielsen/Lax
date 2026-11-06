@@ -17,9 +17,9 @@ import Testing
     #expect(Autocomplete.token(in: "") == nil)
 }
 
-@Test func completingReplacesTheWord() throws {
+@Test func completingReplacesTheWordBeingTyped() throws {
     let token = try #require(Autocomplete.token(in: "hi @ja"))
-    #expect(Autocomplete.completing("hi @ja", token: token, with: "@Jane Doe") == "hi @Jane Doe ")
+    #expect(TextEditing.replacing(token.start..<6, in: "hi @ja", with: "@Jane Doe ").text == "hi @Jane Doe ")
 }
 
 @Test func mentionsBecomeSlackTokens() {

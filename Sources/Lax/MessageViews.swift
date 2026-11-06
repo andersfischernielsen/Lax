@@ -259,27 +259,38 @@ struct ComposerView<Status: View>: View {
         .padding(.bottom, 12)
     }
 
-    /// Where the cursor is; the end of the draft when that's unknown.
-    private var cursor: String.Index {
+    /// The selection as character offsets into the draft. The text field's selection can lag
+    /// behind or not match the draft string, so positions that don't fit it count as the end.
+    private var selectedOffsets: Range<Int> {
         guard case .selection(let range) = selection?.indices,
-              range.upperBound >= draft.startIndex, range.upperBound <= draft.endIndex else { return draft.endIndex }
-        return range.upperBound
+              let lower = String.Index(range.lowerBound, within: draft),
+              let upper = String.Index(range.upperBound, within: draft), lower <= upper else {
+            return draft.count..<draft.count
+        }
+        let start = draft.distance(from: draft.startIndex, to: lower)
+        return start..<(start + draft.distance(from: lower, to: upper))
+    }
+
+    /// Where the cursor is.
+    private var cursor: String.Index {
+        draft.index(draft.startIndex, offsetBy: selectedOffsets.upperBound)
     }
 
     private func take(_ suggestion: Suggestion, for token: Autocomplete.Token) {
-        let before = Autocomplete.completing(String(draft[..<cursor]), token: token, with: suggestion.insert)
-        draft = before + draft[cursor...]
-        selection = TextSelection(insertionPoint: draft.index(draft.startIndex, offsetBy: before.count))
+        let end = selectedOffsets.upperBound
+        replace(token.start..<end, with: suggestion.insert + " ")
         accept(suggestion)
     }
 
     /// Puts `text` in place of the selection, leaving the cursor after it.
     private func insert(_ text: String) {
-        let range: Range<String.Index> = if case .selection(let range) = selection?.indices,
-            range.lowerBound >= draft.startIndex, range.upperBound <= draft.endIndex { range } else { draft.endIndex..<draft.endIndex }
-        let offset = draft.distance(from: draft.startIndex, to: range.lowerBound) + text.count
-        draft.replaceSubrange(range, with: text)
-        selection = TextSelection(insertionPoint: draft.index(draft.startIndex, offsetBy: offset))
+        replace(selectedOffsets, with: text)
+    }
+
+    private func replace(_ range: Range<Int>, with text: String) {
+        let edited = TextEditing.replacing(range, in: draft, with: text)
+        draft = edited.text
+        selection = TextSelection(insertionPoint: edited.text.index(edited.text.startIndex, offsetBy: edited.cursor))
     }
 }
 

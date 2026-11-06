@@ -30,11 +30,6 @@ public enum Autocomplete {
         }
     }
 
-    /// `text` with the word `token` stands for replaced by `completion` and a space.
-    public static func completing(_ text: String, token: Token, with completion: String) -> String {
-        String(text.prefix(token.start)) + completion + " "
-    }
-
     /// Readable mentions typed in the draft, like `@Jane Doe`, turned into the tokens Slack
     /// expects, like `<@U2>`; the longest first, so `@Jane Doe` beats `@Jane`.
     public static func encodingMentions(in text: String, _ mentions: [String: String]) -> String {

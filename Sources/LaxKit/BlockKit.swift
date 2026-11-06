@@ -143,3 +143,36 @@ public enum BlockKit {
         text.replacing("&", with: "&amp;").replacing("<", with: "&lt;").replacing(">", with: "&gt;")
     }
 }
+
+/// A Block Kit button: in an `actions` block, or beside a section's text.
+public struct BlockButton: Hashable, Sendable {
+    public enum Style: String, Sendable { case primary, danger }
+
+    public let blockID: String
+    public let actionID: String
+    public let text: String
+    public let value: String?
+    /// Buttons with a URL open it rather than telling the app.
+    public let url: URL?
+    public let style: Style?
+}
+
+extension BlockKit {
+    public static func buttons(in blocks: [JSONValue]) -> [BlockButton] {
+        blocks.flatMap { block -> [BlockButton] in
+            let blockID = block["block_id"]?.string ?? ""
+            let elements = block["type"]?.string == "actions"
+                ? block["elements"]?.array ?? []
+                : block["accessory"].map { [$0] } ?? []
+            return elements.compactMap { button($0, blockID: blockID) }
+        }
+    }
+
+    private static func button(_ element: JSONValue, blockID: String) -> BlockButton? {
+        guard element["type"]?.string == "button", let actionID = element["action_id"]?.string,
+              let text = element["text"]?["text"]?.string else { return nil }
+        return BlockButton(blockID: blockID, actionID: actionID, text: text, value: element["value"]?.string,
+                           url: element["url"]?.string.flatMap(URL.init(string:)),
+                           style: element["style"]?.string.flatMap(BlockButton.Style.init(rawValue:)))
+    }
+}

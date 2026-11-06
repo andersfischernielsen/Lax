@@ -98,6 +98,8 @@ public struct SlackMessage: Decodable, Hashable, Identifiable, Sendable {
     public let attachments: [SlackAttachment]
     /// What to show as the message body: `text`, or its blocks when they say more.
     public let markup: String
+    /// Buttons from bots and apps, in the order their blocks show them.
+    public let buttons: [BlockButton]
 
     public var id: String { ts }
     public var date: Date { Date(timeIntervalSince1970: Double(ts) ?? 0) }
@@ -118,6 +120,7 @@ public struct SlackMessage: Decodable, Hashable, Identifiable, Sendable {
         self.files = files
         self.attachments = attachments
         markup = text
+        buttons = []
     }
 
     public init(from decoder: Decoder) throws {
@@ -139,6 +142,7 @@ public struct SlackMessage: Decodable, Hashable, Identifiable, Sendable {
         // `text` summarises layout blocks from bots and apps, so show the blocks instead.
         let blocks = (try? c.decodeIfPresent([JSONValue].self, forKey: .blocks)) ?? []
         markup = text.isEmpty || BlockKit.hasLayoutBlocks(blocks) ? BlockKit.markup(blocks).nilIfEmpty ?? text : text
+        buttons = BlockKit.buttons(in: blocks)
     }
 
     private enum Keys: String, CodingKey {

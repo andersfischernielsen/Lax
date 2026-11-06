@@ -48,7 +48,8 @@ struct AttachmentView: View {
 
     @ViewBuilder private func titleView(_ title: String) -> some View {
         if let link = attachment.titleLink {
-            Link(title, destination: link)
+            // Links center wrapped titles by default.
+            Link(title, destination: link).multilineTextAlignment(.leading)
         } else {
             Text(title)
         }

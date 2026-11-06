@@ -8,7 +8,7 @@ public enum SlackAttributes {
         public static let name = "lax.quote"
     }
 
-    /// A workspace's custom emoji, still written as `:name:`; the value is the name.
+    /// A workspace's custom emoji image, written as `:name:`; the value is the name.
     public enum CustomEmoji: AttributedStringKey {
         public typealias Value = String
         public static let name = "lax.customEmoji"
@@ -25,16 +25,17 @@ public struct SlackText: Sendable {
     public var channelName: @Sendable (String) -> String?
     /// User group handle, without the @.
     public var subteamHandle: @Sendable (String) -> String?
-    public var isCustomEmoji: @Sendable (String) -> Bool
+    /// A workspace's custom emoji by name.
+    public var customEmoji: @Sendable (String) -> SlackEmoji?
 
     public init(userName: @escaping @Sendable (String) -> String? = { _ in nil },
                 channelName: @escaping @Sendable (String) -> String? = { _ in nil },
                 subteamHandle: @escaping @Sendable (String) -> String? = { _ in nil },
-                isCustomEmoji: @escaping @Sendable (String) -> Bool = { _ in false }) {
+                customEmoji: @escaping @Sendable (String) -> SlackEmoji? = { _ in nil }) {
         self.userName = userName
         self.channelName = channelName
         self.subteamHandle = subteamHandle
-        self.isCustomEmoji = isCustomEmoji
+        self.customEmoji = customEmoji
     }
 
     public func attributed(_ markup: String) -> AttributedString {
@@ -196,20 +197,21 @@ public struct SlackText: Sendable {
         return result + withEmoji(nsText.substring(from: location), intent: nil)
     }
 
-    /// Replaces `:shortcode:`s with emoji; custom ones stay as text, tagged for the app.
+    /// Replaces `:shortcode:`s with emoji; custom images stay as text, tagged for the app.
     private func withEmoji(_ text: String, intent: InlinePresentationIntent?) -> AttributedString {
         var result = AttributedString()
         var rest = text[...]
         for match in text.matches(of: /:([a-z0-9_+'\-]+(?:::skin-tone-[2-6])?):/) {
             let name = String(match.1)
             result += AttributedString(rest[..<match.range.lowerBound])
-            if let character = Emoji.character(for: name) {
+            switch Emoji.character(for: name).map(SlackEmoji.character) ?? customEmoji(name) {
+            case .character(let character):
                 result += AttributedString(character)
-            } else if isCustomEmoji(name) {
+            case .image:
                 var custom = AttributedString(":\(name):")
                 custom[SlackAttributes.CustomEmoji.self] = name
                 result += custom
-            } else {
+            case nil:
                 result += AttributedString(text[match.range])
             }
             rest = text[match.range.upperBound...]

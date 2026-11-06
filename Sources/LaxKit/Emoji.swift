@@ -20,3 +20,35 @@ public enum Emoji {
         return base.replacing("\u{FE0F}", with: "") + tone
     }
 }
+
+/// What a shortcode stands for in a workspace: a character, or a custom image.
+public enum SlackEmoji: Hashable, Sendable {
+    case character(String)
+    case image(URL)
+}
+
+extension Emoji {
+    /// Resolves `emoji.list` (name → image URL or `alias:other`). Aliases may point at
+    /// other custom emoji or at standard ones; unresolvable entries are dropped.
+    public static func resolveCustom(_ raw: [String: String]) -> [String: SlackEmoji] {
+        func resolve(_ name: String, depth: Int) -> SlackEmoji? {
+            guard depth < 8 else { return nil }
+            guard let value = raw[name] else { return character(for: name).map(SlackEmoji.character) }
+            if value.hasPrefix("alias:") { return resolve(String(value.dropFirst(6)), depth: depth + 1) }
+            return URL(string: value).map(SlackEmoji.image)
+        }
+        return raw.keys.reduce(into: [:]) { result, name in result[name] = resolve(name, depth: 0) }
+    }
+}
+
+extension SlackAPIClient {
+    /// The workspace's custom emoji.
+    public func customEmoji() async throws -> [String: SlackEmoji] {
+        let response: EmojiListResponse = try await call("emoji.list")
+        return Emoji.resolveCustom(response.emoji)
+    }
+}
+
+private struct EmojiListResponse: Decodable {
+    let emoji: [String: String]
+}

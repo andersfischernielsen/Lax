@@ -6,7 +6,8 @@ private let text = SlackText(
     userName: { ["U1": "jane"][$0] },
     channelName: { ["C1": "general"][$0] },
     subteamHandle: { ["S1": "platform"][$0] },
-    isCustomEmoji: { $0 == "hi-wave" }
+    customEmoji: { ["hi-wave": .image(URL(string: "https://emoji.slack-edge.com/T1/hi-wave/1.gif")!),
+                    "yes": .character("👍")][$0] }
 )
 
 private func runs(_ attributed: AttributedString) -> [(String, InlinePresentationIntent?)] {
@@ -38,8 +39,8 @@ private func runs(_ attributed: AttributedString) -> [(String, InlinePresentatio
 }
 
 @Test func tagsCustomEmojiAndLeavesUnknownNames() {
-    let attributed = text.attributed(":hi-wave: :not-an-emoji:")
-    #expect(String(attributed.characters) == ":hi-wave: :not-an-emoji:")
+    let attributed = text.attributed(":hi-wave: :not-an-emoji: :yes:")
+    #expect(String(attributed.characters) == ":hi-wave: :not-an-emoji: 👍")
     #expect(attributed.runs.compactMap { $0[SlackAttributes.CustomEmoji.self] } == ["hi-wave"])
 }
 
@@ -86,4 +87,18 @@ private func runs(_ attributed: AttributedString) -> [(String, InlinePresentatio
 
 @Test func findsMentionedUsers() {
     #expect(SlackText.mentionedUserIDs(in: "<@U1> <@U2|bob> <#C1>") == ["U1", "U2"])
+}
+
+@Test func customEmojiAliasesResolve() {
+    let resolved = Emoji.resolveCustom([
+        "hi-wave": "https://emoji.slack-edge.com/T1/hi-wave/1.gif",
+        "wave2": "alias:hi-wave",
+        "yes": "alias:+1",
+        "loop-a": "alias:loop-b", "loop-b": "alias:loop-a",
+        "broken": "alias:does-not-exist",
+    ])
+    #expect(resolved["wave2"] == .image(URL(string: "https://emoji.slack-edge.com/T1/hi-wave/1.gif")!))
+    #expect(resolved["yes"] == .character("👍"))
+    #expect(resolved["loop-a"] == nil)
+    #expect(resolved["broken"] == nil)
 }

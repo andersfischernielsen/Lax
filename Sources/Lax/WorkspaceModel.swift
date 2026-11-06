@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import LaxKit
 import Observation
 
@@ -13,12 +13,16 @@ final class WorkspaceModel: Identifiable {
     private(set) var status: RealTimeUpdate.Status = .connecting
     private(set) var loadingHistory: Set<String> = []
     private(set) var selectedConversationID: SlackConversation.ID?
+    /// Read position per conversation as it was when opened; the "New" line goes after it.
+    private(set) var unreadMarkers: [String: String] = [:]
     var drafts: [String: String] = [:]
     var errorMessage: String?
 
     @ObservationIgnored private let client: SlackAPIClient
     @ObservationIgnored private var tasks: [Task<Void, Never>] = []
     @ObservationIgnored private var requestedUsers: Set<String> = []
+    @ObservationIgnored private var readPositionKnown: Set<String> = []
+    @ObservationIgnored private var markedReadTS: [String: String] = [:]
 
     nonisolated var id: SlackAccount.ID { account.id }
 
@@ -46,9 +50,29 @@ final class WorkspaceModel: Identifiable {
 
     func select(_ conversationID: SlackConversation.ID?) {
         selectedConversationID = conversationID
-        if let conversationID, timelines[conversationID] == nil {
-            loadOlder(in: conversationID)
+        guard let channel = conversationID else { return }
+        if timelines[channel] == nil { loadOlder(in: channel) }
+
+        // Read the old position before marking anything read, or the marker would vanish.
+        readPositionKnown.remove(channel)
+        unreadMarkers[channel] = nil
+        Task {
+            unreadMarkers[channel] = try? await client.lastRead(channel: channel)
+            readPositionKnown.insert(channel)
+            markReadIfVisible(channel)
         }
+    }
+
+    /// Marks the open conversation read up to its newest message, while Lax is in front.
+    func markReadIfVisible(_ channel: String? = nil) {
+        guard let channel = channel ?? selectedConversationID,
+              channel == selectedConversationID,
+              readPositionKnown.contains(channel),
+              NSApplication.shared.isActive,
+              let newest = timelines[channel]?.newestTS,
+              markedReadTS[channel] != newest else { return }
+        markedReadTS[channel] = newest
+        Task { try? await client.markRead(channel: channel, ts: newest) }
     }
 
     // MARK: - Names
@@ -84,6 +108,7 @@ final class WorkspaceModel: Identifiable {
                 let page = try await client.history(channel: channel, before: timelines[channel]?.oldestTS)
                 timelines[channel, default: Timeline()].addOlder(page)
                 requestNames(for: page.messages)
+                markReadIfVisible(channel)
             } catch {
                 errorMessage = "Couldn't load messages (\(error))."
             }
@@ -151,6 +176,7 @@ final class WorkspaceModel: Identifiable {
             timelines[channel]?.upsert(message)
             if let user = message.userID { typing.clear(userID: user, in: channel) }
             requestNames(for: [message])
+            markReadIfVisible(channel)
         case .messageChanged(let channel, let message):
             timelines[channel]?.replace(message)
             requestNames(for: [message])

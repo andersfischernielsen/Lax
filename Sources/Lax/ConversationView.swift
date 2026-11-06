@@ -1,3 +1,4 @@
+import AppKit
 import LaxKit
 import SwiftUI
 
@@ -15,6 +16,9 @@ struct ConversationView: View {
         let formatter = workspace.textFormatter()
         let timeline = workspace.timelines[conversation.id]
         let messages = timeline?.messages ?? []
+        let firstUnread = workspace.unreadMarkers[conversation.id].flatMap {
+            timeline?.firstUnreadTS(lastRead: $0, ownUserID: workspace.account.userID)
+        }
 
         VStack(spacing: 0) {
             ScrollView {
@@ -28,12 +32,14 @@ struct ConversationView: View {
                     }
                     ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
                         let author = message.userID.flatMap { workspace.users[$0] }
+                        let isFirstUnread = message.ts == firstUnread
+                        if isFirstUnread { NewMessagesDivider() }
                         MessageRow(
                             message: message,
                             author: workspace.authorName(of: message),
                             avatarURL: author?.avatarURL,
                             text: formatter.attributed(message.text),
-                            showsHeader: showsHeader(messages, at: index),
+                            showsHeader: isFirstUnread || showsHeader(messages, at: index),
                             isSystem: message.subtype.map(Self.systemSubtypes.contains) ?? false
                         )
                     }
@@ -46,6 +52,9 @@ struct ConversationView: View {
         }
         .navigationTitle(workspace.displayName(of: conversation))
         .navigationSubtitle(conversation.topic ?? "")
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            workspace.markReadIfVisible()
+        }
     }
 
     private func showsHeader(_ messages: [SlackMessage], at index: Int) -> Bool {
@@ -54,6 +63,17 @@ struct ConversationView: View {
         return previous.userID != message.userID
             || previous.username != message.username
             || message.date.timeIntervalSince(previous.date) > Self.groupingWindow
+    }
+}
+
+private struct NewMessagesDivider: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            Rectangle().fill(.red).frame(height: 1)
+            Text("New").font(.caption.weight(.semibold)).foregroundStyle(.red)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
     }
 }
 

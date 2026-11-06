@@ -62,9 +62,6 @@ struct ContentView: View {
             }
             .inspectorColumnWidth(min: 300, ideal: 380, max: 560)
         }
-        // Switching views jumps straight there: animating the inspector in or out resizes
-        // the conversation every frame, and each resize re-measures every message.
-        .transaction(value: window.area) { $0.disablesAnimations = true }
         .overlay(alignment: .top) {
             if window.showsQuickSwitcher, let workspace {
                 ZStack(alignment: .top) {

@@ -1,7 +1,6 @@
 #!/bin/sh
 # Takes the README screenshots: opens Lax's demo workspace once per scene and captures only
-# Lax's window, then lays them out in docs/screenshots/collage.png. Lax opens and closes a
-# dozen times while this runs.
+# Lax's window, into docs/screenshots. Lax opens and closes a dozen times while this runs.
 set -e
 cd "$(dirname "$0")/.."
 scripts/bundle.sh > /dev/null
@@ -35,6 +34,3 @@ shoot settings smallest -demo-scene settings
 shoot light "" -demo-scene thread -demo-light
 pkill -x Lax 2> /dev/null || true
 
-swift scripts/collage.swift "$out/collage.png" \
-    channel thread direct-messages threads open-quickly composer search bot video emoji-picker settings light
-echo "Laid out $out/collage.png"

@@ -30,9 +30,12 @@
 
 ## Screenshots
 
-<p align="center">
-<img src="docs/screenshots/collage.png" alt="Lax: a channel, a thread, direct messages, followed threads, Open Quickly, the composer with suggestions, search, a bot message with buttons, a video, the emoji picker, Settings and light mode" />
-</p>
+| | | |
+|:-:|:-:|:-:|
+| <img src="docs/screenshots/channel.png" alt="A channel" /><br>A channel | <img src="docs/screenshots/thread.png" alt="A thread beside it" /><br>A thread beside it | <img src="docs/screenshots/direct-messages.png" alt="Direct messages" /><br>Direct messages |
+| <img src="docs/screenshots/threads.png" alt="Followed threads" /><br>Followed threads | <img src="docs/screenshots/open-quickly.png" alt="Open Quickly" /><br>Open Quickly | <img src="docs/screenshots/composer.png" alt="Composer and suggestions" /><br>Composer and suggestions |
+| <img src="docs/screenshots/search.png" alt="Search" /><br>Search | <img src="docs/screenshots/bot.png" alt="Bot messages and buttons" /><br>Bot messages and buttons | <img src="docs/screenshots/video.png" alt="Video" /><br>Video |
+| <img src="docs/screenshots/emoji-picker.png" alt="Emoji picker" /><br>Emoji picker | <img src="docs/screenshots/settings.png" alt="Settings" /><br>Settings | <img src="docs/screenshots/light.png" alt="Light mode" /><br>Light mode |
 
 The people and conversations are a made-up workspace (`-demo`); `scripts/screenshots.sh`
 retakes every screenshot.

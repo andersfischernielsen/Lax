@@ -97,5 +97,9 @@ instead, and the Keychain remembers your choice.
 Issues and pull requests are welcome. Please run `swift test` and keep `swift build`
 free of warnings.
 
+## License
+
+Lax is released under the [MIT License](LICENSE).
+
 Lax is not affiliated with or endorsed by Slack Technologies. Slack is a trademark of
 Slack Technologies, LLC.

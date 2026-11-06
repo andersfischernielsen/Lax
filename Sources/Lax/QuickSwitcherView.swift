@@ -66,12 +66,15 @@ struct QuickSwitcherView: View {
     private func row(_ conversation: SlackConversation) -> some View {
         let mentions = workspace.unread[conversation.id].mentions
         return Label {
-            Text(workspace.displayName(of: conversation).trimmingPrefix("#"))
-                .fontWeight(workspace.isUnread(conversation.id) ? .semibold : .regular)
+            HStack {
+                Text(workspace.displayName(of: conversation).trimmingPrefix("#"))
+                    .fontWeight(workspace.isUnread(conversation.id) ? .semibold : .regular)
+                Spacer(minLength: 4)
+                UnreadBadge(count: mentions)
+            }
         } icon: {
             Image(systemName: conversation.kind.systemImage)
         }
-        .badge(mentions)
         .padding(.vertical, 2)
     }
 

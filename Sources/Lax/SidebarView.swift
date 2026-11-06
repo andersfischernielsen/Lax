@@ -154,6 +154,7 @@ private struct FollowedThreadRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
+                UnreadBadge(count: thread.unreadReplies)
                 if let ts = thread.latestReplyTS, let seconds = Double(ts) {
                     Text(Date(timeIntervalSince1970: seconds), format: .relative(presentation: .named))
                         .font(.caption)
@@ -167,7 +168,6 @@ private struct FollowedThreadRow: View {
                 .foregroundStyle(.secondary)
         }
         .padding(.vertical, 4)
-        .badge(thread.unreadReplies)
         .accessibilityElement(children: .combine)
     }
 }
@@ -188,6 +188,8 @@ private struct ConversationRow: View {
             HStack(spacing: 4) {
                 Text(name.trimmingPrefix("#")).lineLimit(1)
                 if isMuted { Image(systemName: "bell.slash").font(.caption2).accessibilityLabel("Muted") }
+                Spacer(minLength: 4)
+                UnreadBadge(count: counts.mentions)
             }
         } icon: {
             Image(systemName: conversation.kind.systemImage)
@@ -195,7 +197,6 @@ private struct ConversationRow: View {
         .fontWeight(isHighlighted ? .semibold : .regular)
         .foregroundStyle(isHighlighted ? AnyShapeStyle(.primary)
                          : isMuted ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
-        .badge(counts.mentions)
         .contextMenu {
             if counts.hasUnreads || counts.mentions > 0 {
                 Button("Mark as Read") { workspace.markAllRead(in: id) }

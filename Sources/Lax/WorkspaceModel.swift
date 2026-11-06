@@ -423,6 +423,17 @@ final class WorkspaceModel: Identifiable {
         let markup = SlackText.encodedForSending(Autocomplete.encodingMentions(in: text, draftMentions[key] ?? [:]))
         drafts[key] = ""
         draftMentions[key] = nil
+        if let command = SlashCommand(markup) {
+            Task {
+                do {
+                    try await client.run(command, in: channel)
+                } catch {
+                    drafts[key] = text
+                    problem = Problem("Couldn't Run \(command.command)", error)
+                }
+            }
+            return
+        }
         Task {
             do {
                 let message = try await client.postMessage(channel: channel, text: markup, threadTS: thread)
@@ -475,6 +486,17 @@ final class WorkspaceModel: Identifiable {
     func remember(_ suggestion: Suggestion, inDraft key: String) {
         guard let token = suggestion.token else { return }
         draftMentions[key, default: [:]][suggestion.insert] = token
+    }
+
+    /// Presses a bot's button; whatever the bot does next arrives over the real-time connection.
+    func press(_ button: BlockButton, on message: SlackMessage, in channel: String) {
+        Task {
+            do {
+                try await client.press(button, on: message, in: channel)
+            } catch {
+                problem = Problem("Couldn't Press \u{201C}\(button.text)\u{201D}", error)
+            }
+        }
     }
 
     /// Lets the conversation see the user typing, a few seconds at a time.

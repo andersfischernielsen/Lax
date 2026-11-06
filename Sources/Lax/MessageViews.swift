@@ -41,6 +41,9 @@ struct MessageItem: View {
             if !message.files.isEmpty {
                 FilesView(files: message.files, loadImage: workspace.image(at:), playerItem: workspace.playerItem(for:))
             }
+            if !message.buttons.isEmpty {
+                BotButtons(buttons: message.buttons) { workspace.press($0, on: message, in: channel) }
+            }
             if !message.reactions.isEmpty {
                 ReactionsView(reactions: message.reactions, ownUserID: workspace.account.userID,
                               userName: workspace.userName, emojiImage: emojiImage) { name in
@@ -330,5 +333,30 @@ struct TypingIndicator: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+    }
+}
+
+/// A bot's buttons: standard buttons, prominent or red as the bot styles them.
+private struct BotButtons: View {
+    let buttons: [BlockButton]
+    let press: (BlockButton) -> Void
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        FlowLayout(spacing: 6) {
+            ForEach(buttons, id: \.self) { button in
+                let action = { if let url = button.url { openURL(url) } else { press(button) } }
+                switch button.style {
+                case .primary:
+                    Button(button.text, action: action).buttonStyle(.borderedProminent)
+                case .danger:
+                    Button(button.text, role: .destructive, action: action).buttonStyle(.bordered).tint(.red)
+                case nil:
+                    Button(button.text, action: action).buttonStyle(.bordered)
+                }
+            }
+        }
+        .controlSize(.small)
+        .padding(.top, 4)
     }
 }

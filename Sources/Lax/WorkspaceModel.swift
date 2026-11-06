@@ -33,6 +33,8 @@ final class WorkspaceModel: Identifiable {
     var searchQuery = ""
     /// Results of the last search; nil when not searching.
     private(set) var searchResults: [SearchResult]?
+    /// A message the reaction picker is open for.
+    var reactingTo: ReactionTarget?
     /// A message being edited, shown in a sheet.
     var editing: MessageEdit?
     var errorMessage: String?
@@ -498,4 +500,11 @@ struct MessageEdit: Identifiable {
     var text: String
 
     var id: String { "\(channel)/\(ts)" }
+}
+
+struct ReactionTarget: Identifiable {
+    let channel: String
+    let message: SlackMessage
+
+    var id: String { "\(channel)/\(message.ts)" }
 }

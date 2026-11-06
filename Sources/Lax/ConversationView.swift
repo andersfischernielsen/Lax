@@ -59,6 +59,17 @@ struct ConversationView: View {
                     PinnedView(workspace: workspace, channel: conversation.id)
                 }
         }
+        .sheet(item: reactingTo) { target in
+            EmojiPickerView(customEmoji: workspace.customEmoji, emojiImages: workspace.emojiImages,
+                            requestImages: workspace.requestEmojiImages) { name in
+                workspace.reactingTo = nil
+                let alreadyMine = target.message.reactions.first { $0.name == name }?
+                    .users.contains(workspace.account.userID) ?? false
+                if !alreadyMine { workspace.toggleReaction(name, on: target.message, in: target.channel) }
+            } cancel: {
+                workspace.reactingTo = nil
+            }
+        }
         .sheet(item: editing) { _ in
             EditMessageView(text: editText, save: workspace.saveEdit, cancel: { workspace.editing = nil })
         }
@@ -75,6 +86,10 @@ struct ConversationView: View {
                     }
                     workspace.drafts[conversation.id] = text
                 })
+    }
+
+    private var reactingTo: Binding<ReactionTarget?> {
+        Binding(get: { workspace.reactingTo }, set: { workspace.reactingTo = $0 })
     }
 
     private var editing: Binding<MessageEdit?> {

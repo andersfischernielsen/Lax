@@ -70,6 +70,8 @@ struct MessageItem: View {
                     set: { _ in workspace.toggleReaction(name, on: message, in: channel) }
                 ))
             }
+            Divider()
+            Button("More…") { workspace.reactingTo = ReactionTarget(channel: channel, message: message) }
         }
         Divider()
         Button("Copy Text") { workspace.copyText(of: message) }

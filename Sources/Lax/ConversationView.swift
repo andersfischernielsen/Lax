@@ -19,7 +19,8 @@ struct ConversationView: View {
         @Bindable var window = window
         let timeline = workspace.timelines[conversation.id]
         let messages = timeline?.messages ?? []
-        let firstUnread = workspace.unreadMarkers[conversation.id].flatMap {
+        let lastRead = workspace.unreadMarkers[conversation.id]
+        let firstUnread = lastRead.flatMap {
             timeline?.firstUnreadTS(lastRead: $0, ownUserID: workspace.account.userID)
         }
 
@@ -40,12 +41,17 @@ struct ConversationView: View {
                         .listRowSeparator(.hidden)
                 }
                 ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
-                    let isFirstUnread = message.ts == firstUnread
                     let isNewDay = DayLabel.startsNewDay(message.date, after: index > 0 ? messages[index - 1].date : nil)
+                    let isUnread = lastRead.map { SlackTimestamp.isBefore($0, message.ts) } ?? false
+                        && message.userID != workspace.account.userID
                     if isNewDay { DayDivider(date: message.date).messageListRow(selectable: false) }
-                    if isFirstUnread { NewMessagesDivider().messageListRow(selectable: false) }
                     MessageItem(workspace: workspace, channel: conversation.id, message: message,
-                                showsHeader: isNewDay || isFirstUnread || MessageItem.showsHeader(messages, at: index))
+                                showsHeader: isNewDay || MessageItem.showsHeader(messages, at: index))
+                        // Unread: a red bar down the left edge, gone once it's been read.
+                        .overlay(alignment: .leading) {
+                            if isUnread { Rectangle().fill(.red).frame(width: 3).accessibilityHidden(true) }
+                        }
+                        .accessibilityValue(isUnread ? "Unread" : "")
                         .messageListRow(selectable: true)
                         .tag(message.ts)
                         .id(message.ts)
@@ -90,12 +96,14 @@ struct ConversationView: View {
                 } ?? messages.last.map { ($0.ts, UnitPoint.bottom) }
                 Task {
                     // Rows for a page that just arrived exist only after the next layout pass,
-                    // so scroll once now and again once they're there.
-                    if let (id, anchor) = target { proxy.scrollTo(id, anchor: anchor) }
-                    try? await Task.sleep(for: .milliseconds(50))
-                    if let (id, anchor) = target { proxy.scrollTo(id, anchor: anchor) }
+                    // and their heights settle as names and pictures load; scroll again as they
+                    // do, so the list lands on the target rather than near it.
+                    for delay in [0, 50, 150, 300] {
+                        try? await Task.sleep(for: .milliseconds(delay))
+                        if let (id, anchor) = target { proxy.scrollTo(id, anchor: anchor) }
+                    }
                     // Let the scroll land before counting what's on screen.
-                    try? await Task.sleep(for: .milliseconds(250))
+                    try? await Task.sleep(for: .milliseconds(100))
                     isPositioned = true
                     if let newest = visibleRows.ids.max(by: SlackTimestamp.isBefore) {
                         workspace.saw(newest, in: conversation.id)
@@ -179,20 +187,6 @@ private struct DayDivider: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 14)
-    }
-}
-
-private struct NewMessagesDivider: View {
-    var body: some View {
-        HStack(spacing: 8) {
-            Rectangle().fill(.red).frame(height: 1)
-            Text("New").font(.caption.weight(.semibold)).foregroundStyle(.red)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("New messages")
-        .accessibilityAddTraits(.isHeader)
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
     }
 }
 

@@ -39,6 +39,10 @@ final class WorkspaceModel: Identifiable {
     let threads = KeyedStore<ThreadRef, Timeline>()
     /// Unsent messages, as rich text: formatting becomes Slack markup when sent.
     let drafts = KeyedStore<String, AttributedString>()
+    /// Files to send with each draft, by the same key.
+    let uploads = KeyedStore<String, [Upload]>()
+    /// Drafts whose files are on their way to Slack.
+    let uploading = KeyedStore<String, Bool>()
     /// Channel names by ID, for mentions.
     private(set) var channelNames: [String: String] = [:]
     /// The last thing that went wrong, shown as an alert.
@@ -449,11 +453,15 @@ final class WorkspaceModel: Identifiable {
     func send(in channel: String, thread: String? = nil) {
         let key = thread.map { ThreadRef(channel: channel, ts: $0).draftKey } ?? channel
         let text = drafts[key] ?? AttributedString()
+        let files = uploads[key] ?? []
         let written = SlackMarkdown.mrkdwn(from: text).trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !written.isEmpty else { return }
+        guard !written.isEmpty || !files.isEmpty, uploading[key] != true else { return }
         let markup = SlackText.encodedForSending(Autocomplete.encodingMentions(in: written, draftMentions[key] ?? [:]))
         drafts[key] = AttributedString()
         draftMentions[key] = nil
+        if !files.isEmpty {
+            return share(files, with: markup, text: text, in: channel, thread: thread, key: key)
+        }
         if let command = SlashCommand(markup) {
             Task {
                 do {
@@ -473,6 +481,30 @@ final class WorkspaceModel: Identifiable {
                 drafts[key] = text
                 problem = Problem("Couldn't Send the Message", error)
             }
+        }
+    }
+
+    /// Adds files to a draft, each once.
+    func attach(_ files: [Upload], to key: String) {
+        uploads[key] = (uploads[key] ?? []).adding(files)
+    }
+
+    /// Uploads a draft's files with its text as their message. They stay in the composer until
+    /// Slack has them; the message itself arrives over the real-time connection.
+    private func share(
+        _ files: [Upload], with markup: String, text: AttributedString, in channel: String, thread: String?, key: String
+    ) {
+        uploading[key] = true
+        Task {
+            do {
+                try await client.share(files, in: channel, threadTS: thread, comment: markup)
+                uploads[key]?.removeAll { files.contains($0) }
+            } catch {
+                drafts[key] = text
+                problem = Problem(
+                    files.count == 1 ? "Couldn't Upload \(files[0].name)" : "Couldn't Upload the Files", error)
+            }
+            uploading[key] = nil
         }
     }
 

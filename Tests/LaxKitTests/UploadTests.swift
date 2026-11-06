@@ -18,6 +18,18 @@ import Testing
     #expect(Upload(fileAt: URL(string: "https://example.com/notes.txt")!) == nil)
 }
 
+@Test func addingKeepsEachFileOnce() throws {
+    let folder = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: folder) }
+    let (a, b) = (folder.appending(path: "a"), folder.appending(path: "b"))
+    try Data().write(to: a)
+    try Data().write(to: b)
+    let first = try #require(Upload(fileAt: a))
+    let second = try #require(Upload(fileAt: b))
+    #expect([first].adding([second, first, second]) == [first, second])
+}
+
 // In EndpointTests: the URL stub is shared, so these must not run alongside its other tests.
 extension EndpointTests {
     private func uploads(_ names: String...) throws -> [Upload] {

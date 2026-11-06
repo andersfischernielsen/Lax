@@ -57,3 +57,10 @@ private struct UploadedFile: Encodable {
     let id: String
     let title: String
 }
+
+extension [Upload] {
+    /// These files and then `files`, each file once.
+    public func adding(_ files: [Upload]) -> [Upload] {
+        files.reduce(self) { $0.contains($1) ? $0 : $0 + [$1] }
+    }
+}

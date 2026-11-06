@@ -3,6 +3,9 @@ import SwiftUI
 
 @main
 struct LaxApp: App {
+    // Not @State: SwiftUI's macros need Xcode, and the App value is created once anyway.
+    private let model = AppModel()
+
     init() {
         // Unbundled (`swift run`), macOS treats the process as a background tool:
         // no Dock icon, no menu bar, windows open behind other apps.
@@ -14,7 +17,14 @@ struct LaxApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(model: model)
+                .task { model.load() }
+        }
+        .commands {
+            CommandGroup(after: .newItem) {
+                Button("Add Workspace…") { model.beginSignIn() }
+                    .keyboardShortcut("n", modifiers: [.command, .shift])
+            }
         }
     }
 }

@@ -187,9 +187,22 @@ final class WorkspaceModel: Identifiable {
         let missing = ids.subtracting(requestedUsers)
         guard !missing.isEmpty else { return }
         requestedUsers.formUnion(missing)
+        // Each batch runs on its own, a few at a time, so the names for the messages
+        // on screen don't queue behind a long batch like every DM partner.
+        let client = client
         Task {
-            for id in missing.sorted() {
-                if let user = try? await client.user(id: id) { users[id] = user }
+            await withTaskGroup(of: SlackUser?.self) { group in
+                var pending = missing.sorted()[...]
+                for _ in 0..<min(6, pending.count) {
+                    let id = pending.removeFirst()
+                    group.addTask { try? await client.user(id: id) }
+                }
+                for await user in group {
+                    if let user { users[user.id] = user }
+                    if let id = pending.popFirst() {
+                        group.addTask { try? await client.user(id: id) }
+                    }
+                }
             }
         }
     }

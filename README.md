@@ -53,6 +53,10 @@ third parties, so check that it fits your workspace's policies.
 | Action | Shortcut |
 | ------ | -------- |
 | Open Quickly | ⌘K |
+| New tab, new window | ⌘T, ⌘N |
+| Show or hide the sidebar | ⌃⌘S |
+| Switch workspace | ⌃⌘1 to ⌃⌘9 |
+| Add workspace | ⇧⌘N |
 | Channels, Direct Messages, Threads | ⌘1, ⌘2, ⌘3 |
 | Back, Forward | ⌘[, ⌘] |
 | Previous or next conversation | ⌥⌘↑, ⌥⌘↓ (add ⇧ for unread ones) |

@@ -182,6 +182,21 @@ final class WorkspaceModel: Identifiable {
         }
     }
 
+    /// Adds or removes the user's reaction, showing it at once and undoing it if Slack refuses.
+    func toggleReaction(_ name: String, on message: SlackMessage, in channel: String) {
+        let me = account.userID
+        let adding = !(message.reactions.first { $0.name == name }?.users.contains(me) ?? false)
+        timelines[channel]?.react(name, by: me, added: adding, to: message.ts)
+        Task {
+            do {
+                try await client.react(name, to: message.ts, in: channel, added: adding)
+            } catch {
+                timelines[channel]?.react(name, by: me, added: !adding, to: message.ts)
+                errorMessage = "Couldn't update the reaction (\(error))."
+            }
+        }
+    }
+
     // MARK: - Real time
 
     private func listen() async {
@@ -205,6 +220,8 @@ final class WorkspaceModel: Identifiable {
             }
             requestNames(for: [message])
             markReadIfVisible(channel)
+        case .reaction(let channel, let ts, let name, let user, let added):
+            timelines[channel]?.react(name, by: user, added: added, to: ts)
         case .marked(let channel, let unreadCount, let mentionCount):
             unread.marked(channel, unreadCount: unreadCount, mentionCount: mentionCount)
         case .messageChanged(let channel, let message):

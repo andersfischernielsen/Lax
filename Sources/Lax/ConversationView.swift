@@ -43,7 +43,14 @@ struct ConversationView: View {
                             text: MessageStyle.styled(formatter.attributed(message.text)),
                             showsHeader: isNewDay || isFirstUnread || showsHeader(messages, at: index),
                             isSystem: message.subtype.map(Self.systemSubtypes.contains) ?? false
-                        )
+                        ) {
+                            if !message.reactions.isEmpty {
+                                ReactionsView(reactions: message.reactions, ownUserID: workspace.account.userID,
+                                              userName: workspace.userName) { name in
+                                    workspace.toggleReaction(name, on: message, in: conversation.id)
+                                }
+                            }
+                        }
                     }
                 }
                 .padding(.vertical, 8)
@@ -93,13 +100,14 @@ private struct NewMessagesDivider: View {
     }
 }
 
-private struct MessageRow: View {
+private struct MessageRow<Footer: View>: View {
     let message: SlackMessage
     let author: String
     let avatarURL: URL?
     let text: AttributedString
     let showsHeader: Bool
     let isSystem: Bool
+    @ViewBuilder let footer: Footer
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -120,6 +128,7 @@ private struct MessageRow: View {
                 Text(text)
                     .foregroundStyle(isSystem ? .secondary : .primary)
                     .textSelection(.enabled)
+                footer
                 if message.isEdited || message.replyCount > 0 {
                     HStack(spacing: 8) {
                         if message.replyCount > 0 {

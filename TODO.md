@@ -51,7 +51,7 @@
 - [x] Back and forward: Go ▸ Back / Forward (⌘[ / ⌘]), toolbar buttons and the mouse's
       back and forward buttons, through conversations and threads visited in a window
 
-- [ ] New app icon: a simple hashtag on a gradient, made as a Liquid Glass icon (an Icon
+- [x] New app icon: a simple hashtag on a gradient, made as a Liquid Glass icon (an Icon
       Composer `.icon` file) so macOS renders it in its glass, dark, tinted and clear styles
 
 ## Bugs

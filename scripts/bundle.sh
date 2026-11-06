@@ -15,7 +15,10 @@ for resources in "$bin_dir"/*.bundle; do
     [ -e "$resources" ] && cp -R "$resources" "$app/Contents/Resources/"
 done
 cp Support/Info.plist "$app/Contents/Info.plist"
-cp Support/AppIcon.icns "$app/Contents/Resources/"
+# The Liquid Glass icon (Icon Composer), compiled to Assets.car plus an .icns fallback.
+xcrun actool Support/AppIcon.icon --compile "$app/Contents/Resources" --platform macosx \
+    --minimum-deployment-target 27.0 --app-icon AppIcon \
+    --output-partial-info-plist build/AppIcon-partial.plist > /dev/null
 codesign --force --sign - "$app"
 
 echo "Built $app"

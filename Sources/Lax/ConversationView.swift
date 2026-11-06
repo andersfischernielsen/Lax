@@ -62,7 +62,12 @@ struct ConversationView: View {
 
     private var draft: Binding<String> {
         Binding(get: { workspace.drafts[conversation.id] ?? "" },
-                set: { workspace.drafts[conversation.id] = $0 })
+                set: { text in
+                    if !text.isEmpty, text != workspace.drafts[conversation.id] {
+                        workspace.userTyped(in: conversation.id)
+                    }
+                    workspace.drafts[conversation.id] = text
+                })
     }
 
     private var editing: Binding<MessageEdit?> {

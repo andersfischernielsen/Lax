@@ -55,6 +55,11 @@ struct ThreadView: View {
 
     private var draft: Binding<String> {
         Binding(get: { workspace.drafts[thread.draftKey] ?? "" },
-                set: { workspace.drafts[thread.draftKey] = $0 })
+                set: { text in
+                    if !text.isEmpty, text != workspace.drafts[thread.draftKey] {
+                        workspace.userTyped(in: thread.channel)
+                    }
+                    workspace.drafts[thread.draftKey] = text
+                })
     }
 }

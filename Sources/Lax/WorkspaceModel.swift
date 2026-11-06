@@ -33,6 +33,8 @@ final class WorkspaceModel: Identifiable {
     var errorMessage: String?
 
     @ObservationIgnored private let client: SlackAPIClient
+    @ObservationIgnored private let connection: RealTimeConnection
+    @ObservationIgnored private var typingThrottle = TypingThrottle()
     @ObservationIgnored private var tasks: [Task<Void, Never>] = []
     @ObservationIgnored private var requestedUsers: Set<String> = []
     @ObservationIgnored private var readPositionKnown: Set<String> = []
@@ -46,6 +48,7 @@ final class WorkspaceModel: Identifiable {
     init(account: SlackAccount) {
         self.account = account
         client = SlackAPIClient(credentials: account.credentials)
+        connection = RealTimeConnection(client: client)
     }
 
     private var lastConversationKey: String { "lastConversation.\(account.id)" }
@@ -276,6 +279,13 @@ final class WorkspaceModel: Identifiable {
         }
     }
 
+    /// Lets the conversation see the user typing, a few seconds at a time.
+    func userTyped(in channel: String) {
+        guard typingThrottle.shouldSend(in: channel) else { return }
+        let connection = connection
+        Task { await connection.sendTyping(in: channel) }
+    }
+
     // MARK: - Message actions
 
     func beginEdit(_ message: SlackMessage, in channel: String) {
@@ -382,7 +392,7 @@ final class WorkspaceModel: Identifiable {
     // MARK: - Real time
 
     private func listen() async {
-        for await update in RealTimeConnection(client: client).updates() {
+        for await update in connection.updates() {
             switch update {
             case .status(let newStatus): status = newStatus
             case .event(let event): apply(event)

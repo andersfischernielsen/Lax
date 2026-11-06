@@ -41,3 +41,4 @@
 - [ ] Emoji autocomplete: typing `:` suggests shortcodes, standard and custom
 - [ ] Separate native views for all threads, all DMs and the base channel view
       (e.g. their own windows or tabs, macOS-style)
+- [ ] View → Show Tab Bar doesn't work (native macOS window tabs)

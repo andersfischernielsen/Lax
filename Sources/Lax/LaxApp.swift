@@ -3,8 +3,7 @@ import SwiftUI
 
 @main
 struct LaxApp: App {
-    // Not @State: SwiftUI's macros need Xcode, and the App value is created once anyway.
-    private let model = AppModel()
+    @State private var model = AppModel()
 
     init() {
         // Unbundled (`swift run`), macOS treats the process as a background tool:

@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import LaxKit
 
 private func cookie(_ name: String, _ value: String, domain: String = ".slack.com") -> HTTPCookie {
@@ -7,13 +8,13 @@ private func cookie(_ name: String, _ value: String, domain: String = ".slack.co
 }
 
 private let config = """
-{"teams":{
-  "T1":{"id":"T1","name":"Acme","url":"https://acme.slack.com/","token":"xoxc-1","user_id":"U1"},
-  "T2":{"id":"T2","name":"Grid","url":"https://acme-grid.enterprise.slack.com/","token":"xoxc-2"},
-  "T3":{"id":"T3","name":"No token","url":"https://none.slack.com/"},
-  "T4":{"id":"T4","name":"Elsewhere","url":"https://evil.example.com/","token":"xoxc-4"}
-},"lastActiveTeamId":"T1"}
-"""
+    {"teams":{
+      "T1":{"id":"T1","name":"Acme","url":"https://acme.slack.com/","token":"xoxc-1","user_id":"U1"},
+      "T2":{"id":"T2","name":"Grid","url":"https://acme-grid.enterprise.slack.com/","token":"xoxc-2"},
+      "T3":{"id":"T3","name":"No token","url":"https://none.slack.com/"},
+      "T4":{"id":"T4","name":"Elsewhere","url":"https://evil.example.com/","token":"xoxc-4"}
+    },"lastActiveTeamId":"T1"}
+    """
 
 @Test func extractsOneCredentialPerWorkspaceWithToken() {
     let found = SlackWebSession.credentials(localConfig: config, cookies: [cookie("d", "xyz")])
@@ -22,8 +23,10 @@ private let config = """
 }
 
 @Test func keepsOnlySlackWideCookies() {
-    let cookies = [cookie("d", "xyz"), cookie("d-s", "1"), cookie("other", "no", domain: "acme.slack.com"),
-                   cookie("tracker", "no", domain: ".example.com")]
+    let cookies = [
+        cookie("d", "xyz"), cookie("d-s", "1"), cookie("other", "no", domain: "acme.slack.com"),
+        cookie("tracker", "no", domain: ".example.com"),
+    ]
     let found = SlackWebSession.credentials(localConfig: config, cookies: cookies)
     #expect(found.first?.cookieHeader == "d=xyz; d-s=1")
 }

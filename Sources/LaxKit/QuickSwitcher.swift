@@ -23,10 +23,13 @@ public enum QuickSwitcher {
             $0.name.trimmingPrefix("#").localizedStandardCompare($1.name.trimmingPrefix("#")) == .orderedAscending
         }
         guard !query.isEmpty else {
-            return (candidates.filter(\.isUnread).sorted(by: byName) + candidates.filter { !$0.isUnread }.sorted(by: byName))
+            return
+                (candidates.filter(\.isUnread).sorted(by: byName)
+                + candidates.filter { !$0.isUnread }.sorted(by: byName))
                 .prefix(limit).map(\.id)
         }
-        return candidates
+        return
+            candidates
             .compactMap { candidate in score(candidate.name, query: String(query)).map { (candidate, $0) } }
             .sorted { $0.1 != $1.1 ? $0.1 > $1.1 : byName($0.0, $1.0) }
             .prefix(limit)

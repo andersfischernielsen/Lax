@@ -16,8 +16,10 @@ public struct SlackConversation: Decodable, Hashable, Identifiable, Sendable {
     public let userID: String?
     public let topic: String?
 
-    public init(id: String, name: String?, kind: Kind, isArchived: Bool = false,
-                userID: String? = nil, topic: String? = nil) {
+    public init(
+        id: String, name: String?, kind: Kind, isArchived: Bool = false,
+        userID: String? = nil, topic: String? = nil
+    ) {
         self.id = id
         self.name = name
         self.kind = kind
@@ -38,7 +40,8 @@ public struct SlackConversation: Decodable, Hashable, Identifiable, Sendable {
         } else if try c.decodeIfPresent(Bool.self, forKey: .isMPIM) == true {
             kind = .groupDirectMessage
         } else if try c.decodeIfPresent(Bool.self, forKey: .isPrivate) == true
-                    || c.decodeIfPresent(Bool.self, forKey: .isGroup) == true {
+            || c.decodeIfPresent(Bool.self, forKey: .isGroup) == true
+        {
             kind = .privateChannel
         } else {
             kind = .channel
@@ -47,8 +50,10 @@ public struct SlackConversation: Decodable, Hashable, Identifiable, Sendable {
 
     /// Sidebar name: `#general`, the other person for a DM, the other members of a group DM
     /// (by name when `members` is known, else the handles in Slack's `mpdm-…` name).
-    public func displayName(userName: (String) -> String?, members: [String]? = nil,
-                            ownUserID: String? = nil) -> String {
+    public func displayName(
+        userName: (String) -> String?, members: [String]? = nil,
+        ownUserID: String? = nil
+    ) -> String {
         switch kind {
         case .channel, .privateChannel:
             return "#" + (name ?? id)
@@ -104,9 +109,11 @@ public struct SlackMessage: Decodable, Hashable, Identifiable, Sendable {
     public var id: String { ts }
     public var date: Date { Date(timeIntervalSince1970: Double(ts) ?? 0) }
 
-    public init(ts: String, userID: String?, text: String, botID: String? = nil, username: String? = nil,
-                subtype: String? = nil, threadTS: String? = nil, replyCount: Int = 0, isEdited: Bool = false,
-                reactions: [SlackReaction] = [], files: [SlackFile] = [], attachments: [SlackAttachment] = []) {
+    public init(
+        ts: String, userID: String?, text: String, botID: String? = nil, username: String? = nil,
+        subtype: String? = nil, threadTS: String? = nil, replyCount: Int = 0, isEdited: Bool = false,
+        reactions: [SlackReaction] = [], files: [SlackFile] = [], attachments: [SlackAttachment] = []
+    ) {
         self.ts = ts
         self.userID = userID
         self.botID = botID
@@ -167,8 +174,10 @@ public struct SlackUser: Decodable, Hashable, Identifiable, Sendable {
         displayName.nilIfEmpty ?? realName.nilIfEmpty ?? name
     }
 
-    public init(id: String, name: String, displayName: String = "", realName: String = "",
-                avatarURL: URL? = nil, isBot: Bool = false, isDeleted: Bool = false) {
+    public init(
+        id: String, name: String, displayName: String = "", realName: String = "",
+        avatarURL: URL? = nil, isBot: Bool = false, isDeleted: Bool = false
+    ) {
         self.id = id
         self.name = name
         self.displayName = displayName

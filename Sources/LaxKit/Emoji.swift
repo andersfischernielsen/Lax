@@ -5,8 +5,9 @@ import Foundation
 public enum Emoji {
     public static let shortcodes: [String: String] = {
         guard let url = Bundle.module.url(forResource: "emoji", withExtension: "json"),
-              let data = try? Data(contentsOf: url),
-              let table = try? JSONDecoder().decode([String: String].self, from: data) else { return [:] }
+            let data = try? Data(contentsOf: url),
+            let table = try? JSONDecoder().decode([String: String].self, from: data)
+        else { return [:] }
         return table
     }()
 

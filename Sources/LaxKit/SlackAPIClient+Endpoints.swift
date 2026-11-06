@@ -12,7 +12,9 @@ extension SlackAPIClient {
         var all: [SlackConversation] = []
         var cursor: String?
         repeat {
-            var params = ["types": "public_channel,private_channel,mpim,im", "exclude_archived": "true", "limit": "200"]
+            var params = [
+                "types": "public_channel,private_channel,mpim,im", "exclude_archived": "true", "limit": "200",
+            ]
             params["cursor"] = cursor
             let page: ConversationsPage = try await call("users.conversations", params)
             all += page.channels
@@ -56,8 +58,9 @@ extension SlackAPIClient {
     }
 
     public func react(_ name: String, to ts: String, in channel: String, added: Bool) async throws {
-        let _: Empty = try await call(added ? "reactions.add" : "reactions.remove",
-                                      ["channel": channel, "timestamp": ts, "name": name])
+        let _: Empty = try await call(
+            added ? "reactions.add" : "reactions.remove",
+            ["channel": channel, "timestamp": ts, "name": name])
     }
 
     /// Unread state and latest activity for every conversation, and for followed threads,
@@ -66,12 +69,16 @@ extension SlackAPIClient {
         let response: CountsResponse = try await call("client.counts", ["thread_counts_by_channel": "true"])
         let all = (response.channels ?? []) + (response.mpims ?? []) + (response.ims ?? [])
         return ClientCounts(
-            unread: UnreadState(Dictionary(all.map {
-                ($0.id, UnreadState.Counts(hasUnreads: $0.hasUnreads ?? false, mentions: $0.mentionCount ?? 0))
-            }, uniquingKeysWith: { first, _ in first })),
-            latest: Dictionary(all.compactMap { c in c.latest.map { (c.id, $0) } }, uniquingKeysWith: { first, _ in first }),
-            threads: UnreadState.Counts(hasUnreads: response.threads?.hasUnreads ?? false,
-                                        mentions: response.threads?.mentionCount ?? 0)
+            unread: UnreadState(
+                Dictionary(
+                    all.map {
+                        ($0.id, UnreadState.Counts(hasUnreads: $0.hasUnreads ?? false, mentions: $0.mentionCount ?? 0))
+                    }, uniquingKeysWith: { first, _ in first })),
+            latest: Dictionary(
+                all.compactMap { c in c.latest.map { (c.id, $0) } }, uniquingKeysWith: { first, _ in first }),
+            threads: UnreadState.Counts(
+                hasUnreads: response.threads?.hasUnreads ?? false,
+                mentions: response.threads?.mentionCount ?? 0)
         )
     }
 
@@ -89,9 +96,11 @@ extension SlackAPIClient {
 
     /// Messages matching a search, newest first.
     public func searchMessages(_ query: String, count: Int = 50) async throws -> [SearchResult] {
-        let response: SearchResponse = try await call("search.messages", [
-            "query": query, "count": String(count), "sort": "timestamp", "sort_dir": "desc",
-        ])
+        let response: SearchResponse = try await call(
+            "search.messages",
+            [
+                "query": query, "count": String(count), "sort": "timestamp", "sort_dir": "desc",
+            ])
         return response.messages.matches.compactMap(\.value)
     }
 

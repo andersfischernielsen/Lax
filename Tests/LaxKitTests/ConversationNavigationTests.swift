@@ -1,4 +1,5 @@
 import Testing
+
 @testable import LaxKit
 
 private let order = ["C1", "C2", "C3", "D1"]

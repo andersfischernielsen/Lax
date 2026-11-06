@@ -43,7 +43,8 @@ struct AttachmentView: View {
     }
 
     private var barColor: Color {
-        attachment.color.map { Color(red: $0.red, green: $0.green, blue: $0.blue) } ?? Color(nsColor: .tertiaryLabelColor)
+        attachment.color.map { Color(red: $0.red, green: $0.green, blue: $0.blue) }
+            ?? Color(nsColor: .tertiaryLabelColor)
     }
 
     @ViewBuilder private func titleView(_ title: String) -> some View {

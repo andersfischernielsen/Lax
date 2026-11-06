@@ -1,4 +1,5 @@
 import Testing
+
 @testable import LaxKit
 
 private let channel = SlackConversation(id: "C1", name: "general", kind: .channel)

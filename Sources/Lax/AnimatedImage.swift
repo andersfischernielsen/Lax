@@ -62,8 +62,9 @@ struct EmojiAnimation {
     init?(_ image: NSImage) {
         // A copy: stepping through frames changes the image, which may be playing elsewhere.
         guard let original = image.representations.lazy.compactMap({ $0 as? NSBitmapImageRep }).first,
-              let rep = original.copy() as? NSBitmapImageRep,
-              let count = rep.value(forProperty: .frameCount) as? Int, count > 1 else { return nil }
+            let rep = original.copy() as? NSBitmapImageRep,
+            let count = rep.value(forProperty: .frameCount) as? Int, count > 1
+        else { return nil }
         var frames: [CGImage] = []
         var durations: [Double] = []
         for index in 0..<count {

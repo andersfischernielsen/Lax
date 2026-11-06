@@ -1,14 +1,17 @@
 import Foundation
 import Testing
+
 @testable import LaxKit
 
 private func summary(_ channel: String, _ ts: String, unread: Int = 0) throws -> ThreadSummary {
-    let json = #"{"root_msg":{"ts":"\#(ts)","thread_ts":"\#(ts)","text":"root","channel":"\#(channel)"},"unread_replies":\#(Array(repeating: #"{"ts":"0.1","text":"x"}"#, count: unread))}"#
+    let json =
+        #"{"root_msg":{"ts":"\#(ts)","thread_ts":"\#(ts)","text":"root","channel":"\#(channel)"},"unread_replies":\#(Array(repeating: #"{"ts":"0.1","text":"x"}"#, count: unread))}"#
     return try JSONDecoder().decode(ThreadSummary.self, from: Data(json.utf8))
 }
 
 private func reply(_ ts: String, to thread: String, by user: String) throws -> SlackMessage {
-    try JSONDecoder().decode(SlackMessage.self, from: Data(#"{"ts":"\#(ts)","thread_ts":"\#(thread)","user":"\#(user)","text":"r"}"#.utf8))
+    try JSONDecoder().decode(
+        SlackMessage.self, from: Data(#"{"ts":"\#(ts)","thread_ts":"\#(thread)","user":"\#(user)","text":"r"}"#.utf8))
 }
 
 @Test func replyMovesItsThreadToTheTopAsUnread() throws {

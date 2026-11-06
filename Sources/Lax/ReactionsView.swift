@@ -14,7 +14,9 @@ struct ReactionsView: View {
         FlowLayout(spacing: 4) {
             ForEach(reactions, id: \.name) { reaction in
                 let isMine = reaction.users.contains(ownUserID)
-                Button { toggle(reaction.name) } label: {
+                Button {
+                    toggle(reaction.name)
+                } label: {
                     HStack(spacing: 4) {
                         emoji(reaction.name)
                         Text("\(reaction.count)").font(.caption.monospacedDigit())
@@ -90,7 +92,8 @@ struct FlowLayout: Layout {
         var rows: [Row] = [Row()]
         for index in subviews.indices {
             let size = subviews[index].sizeThatFits(.unspecified)
-            let needed = rows[rows.count - 1].indices.isEmpty ? size.width : rows[rows.count - 1].width + spacing + size.width
+            let needed =
+                rows[rows.count - 1].indices.isEmpty ? size.width : rows[rows.count - 1].width + spacing + size.width
             if needed > width, !rows[rows.count - 1].indices.isEmpty {
                 rows.append(Row())
             }

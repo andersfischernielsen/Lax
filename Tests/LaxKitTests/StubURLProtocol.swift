@@ -31,7 +31,9 @@ final class StubURLProtocol: URLProtocol {
         let method = request.url?.lastPathComponent ?? ""
         let body = Self.state.withLock { state -> String in
             state.requests.append(recorded)
-            guard var queue = state.responses[method], !queue.isEmpty else { return #"{"ok":false,"error":"unstubbed"}"# }
+            guard var queue = state.responses[method], !queue.isEmpty else {
+                return #"{"ok":false,"error":"unstubbed"}"#
+            }
             let next = queue.removeFirst()
             state.responses[method] = queue
             return next
@@ -51,15 +53,17 @@ extension URLRequest {
         guard let body = httpBody.flatMap({ String(data: $0, encoding: .utf8) }) else { return [:] }
         var fields: [String: String] = [:]
         for pair in body.split(separator: "&") {
-            let parts = pair.split(separator: "=", maxSplits: 1).map { String($0).removingPercentEncoding ?? String($0) }
+            let parts = pair.split(separator: "=", maxSplits: 1).map {
+                String($0).removingPercentEncoding ?? String($0)
+            }
             fields[parts[0]] = parts.count > 1 ? parts[1] : ""
         }
         return fields
     }
 }
 
-private extension Data {
-    init(reading stream: InputStream) {
+extension Data {
+    fileprivate init(reading stream: InputStream) {
         self.init()
         stream.open()
         defer { stream.close() }

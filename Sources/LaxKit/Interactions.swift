@@ -9,7 +9,9 @@ public struct SlashCommand: Equatable, Sendable {
     /// The command at the start of `draft`, if it is one. `//` and a lone `/` aren't.
     public init?(_ draft: String) {
         let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let match = trimmed.wholeMatch(of: /(\/[a-zA-Z0-9_\-.]+)(?:\s+(.*))?/.dotMatchesNewlines()) else { return nil }
+        guard let match = trimmed.wholeMatch(of: /(\/[a-zA-Z0-9_\-.]+)(?:\s+(.*))?/.dotMatchesNewlines()) else {
+            return nil
+        }
         command = String(match.1)
         text = match.2.map(String.init) ?? ""
     }
@@ -19,16 +21,19 @@ extension SlackAPIClient {
     /// Runs a slash command in a conversation, as Slack's own clients do; any reply
     /// arrives as a message, often one only the user sees.
     public func run(_ command: SlashCommand, in channel: String) async throws {
-        let _: Empty = try await call("chat.command", [
-            "channel": channel, "command": command.command, "text": command.text,
-            "disp": command.command, "client_token": Self.clientToken(),
-        ])
+        let _: Empty = try await call(
+            "chat.command",
+            [
+                "channel": channel, "command": command.command, "text": command.text,
+                "disp": command.command, "client_token": Self.clientToken(),
+            ])
     }
 
     /// Presses a bot's button on a message, which tells the bot's app.
     public func press(_ button: BlockButton, on message: SlackMessage, in channel: String) async throws {
-        let action = ButtonAction(actionID: button.actionID, blockID: button.blockID,
-                                  text: .init(text: button.text), value: button.value)
+        let action = ButtonAction(
+            actionID: button.actionID, blockID: button.blockID,
+            text: .init(text: button.text), value: button.value)
         let container = MessageContainer(messageTS: message.ts, channelID: channel)
         var params = [
             "actions": try Self.json([action]), "container": try Self.json(container),

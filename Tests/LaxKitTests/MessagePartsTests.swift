@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import LaxKit
 
 private func decode(_ json: String) throws -> SlackMessage {
@@ -30,19 +31,24 @@ private func decode(_ json: String) throws -> SlackMessage {
 }
 
 @Test func parsesReactionEvents() {
-    let event = RealTimeEvent.parse(Data(#"""
-        {"type":"reaction_added","user":"U2","reaction":"eyes","item_user":"U1",
-         "item":{"type":"message","channel":"C1","ts":"1.0"}}
-        """#.utf8))
+    let event = RealTimeEvent.parse(
+        Data(
+            #"""
+            {"type":"reaction_added","user":"U2","reaction":"eyes","item_user":"U1",
+             "item":{"type":"message","channel":"C1","ts":"1.0"}}
+            """#.utf8))
     #expect(event == .reaction(channel: "C1", ts: "1.0", name: "eyes", userID: "U2", added: true))
-    let fileReaction = RealTimeEvent.parse(Data(#"""
-        {"type":"reaction_removed","user":"U2","reaction":"eyes","item":{"type":"file","file":"F1"}}
-        """#.utf8))
+    let fileReaction = RealTimeEvent.parse(
+        Data(
+            #"""
+            {"type":"reaction_removed","user":"U2","reaction":"eyes","item":{"type":"file","file":"F1"}}
+            """#.utf8))
     #expect(fileReaction == nil)
 }
 
 @Test func imagesGetPreviewsAndOtherFilesDont() throws {
-    let message = try decode(#"""
+    let message = try decode(
+        #"""
         {"ts":"1.0","text":"","files":[
           {"id":"F1","name":"shot.png","title":"Screenshot","mimetype":"image/png",
            "url_private":"https://files.slack.com/files-pri/T1-F1/shot.png","permalink":"https://acme.slack.com/files/U1/F1/shot.png",
@@ -59,7 +65,8 @@ private func decode(_ json: String) throws -> SlackMessage {
 }
 
 @Test func previewsFitWithoutEnlarging() throws {
-    let message = try decode(#"""
+    let message = try decode(
+        #"""
         {"ts":"1.0","text":"","files":[{"id":"F1","name":"a.png","mimetype":"image/png",
          "thumb_720":"https://files.slack.com/a_720.png","thumb_720_w":720,"thumb_720_h":360}]}
         """#)
@@ -71,10 +78,10 @@ private func decode(_ json: String) throws -> SlackMessage {
 
 @Test func gifsPreviewAnimatedAtTheirOriginalSize() throws {
     let json = #"""
-    {"id":"F1","name":"party.gif","mimetype":"image/gif","url_private":"https://files.slack.com/party.gif",
-     "thumb_360":"https://files.slack.com/party_360.png","thumb_360_w":360,"thumb_360_h":200,
-     "thumb_480_gif":"https://files.slack.com/party_480.gif","original_w":480,"original_h":270}
-    """#
+        {"id":"F1","name":"party.gif","mimetype":"image/gif","url_private":"https://files.slack.com/party.gif",
+         "thumb_360":"https://files.slack.com/party_360.png","thumb_360_w":360,"thumb_360_h":200,
+         "thumb_480_gif":"https://files.slack.com/party_480.gif","original_w":480,"original_h":270}
+        """#
     let file = try JSONDecoder().decode(SlackFile.self, from: Data(json.utf8))
     let preview = try #require(file.preview)
     #expect(preview.isAnimated)
@@ -84,10 +91,10 @@ private func decode(_ json: String) throws -> SlackMessage {
 
 @Test func videosHaveAPlayableURLAndPoster() throws {
     let json = #"""
-    {"id":"F2","name":"demo.mov","mimetype":"video/quicktime","url_private":"https://files.slack.com/demo.mov",
-     "mp4":"https://files.slack.com/demo.mp4",
-     "thumb_video":"https://files.slack.com/demo.jpg","thumb_video_w":1280,"thumb_video_h":720}
-    """#
+        {"id":"F2","name":"demo.mov","mimetype":"video/quicktime","url_private":"https://files.slack.com/demo.mov",
+         "mp4":"https://files.slack.com/demo.mp4",
+         "thumb_video":"https://files.slack.com/demo.jpg","thumb_video_w":1280,"thumb_video_h":720}
+        """#
     let file = try JSONDecoder().decode(SlackFile.self, from: Data(json.utf8))
     let video = try #require(file.video)
     #expect(video.url.absoluteString == "https://files.slack.com/demo.mp4")

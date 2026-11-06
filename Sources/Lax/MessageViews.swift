@@ -14,7 +14,9 @@ struct MessageItem: View {
     @Environment(\.openWindow) private var openWindow
 
     /// Offered under "Add Reaction" in the message menu.
-    private static let quickReactions = ["+1", "heart", "joy", "tada", "eyes", "pray", "white_check_mark", "raised_hands"]
+    private static let quickReactions = [
+        "+1", "heart", "joy", "tada", "eyes", "pray", "white_check_mark", "raised_hands",
+    ]
 
     private static let systemSubtypes: Set<String> = [
         "channel_join", "channel_leave", "channel_topic", "channel_purpose", "channel_name",
@@ -57,8 +59,10 @@ struct MessageItem: View {
                 BotButtons(buttons: message.buttons) { workspace.press($0, on: message, in: channel) }
             }
             if !message.reactions.isEmpty {
-                ReactionsView(reactions: message.reactions, ownUserID: workspace.account.userID,
-                              userName: workspace.userName, emojiImage: emojiImage) { name in
+                ReactionsView(
+                    reactions: message.reactions, ownUserID: workspace.account.userID,
+                    userName: workspace.userName, emojiImage: emojiImage
+                ) { name in
                     workspace.toggleReaction(name, on: message, in: channel)
                 }
             }
@@ -83,11 +87,14 @@ struct MessageItem: View {
             .keyboardShortcut(Shortcuts.replyInThread)
         Menu("Add Reaction") {
             ForEach(Self.quickReactions, id: \.self) { name in
-                let isMine = message.reactions.first { $0.name == name }?.users.contains(workspace.account.userID) ?? false
-                Toggle("\(Emoji.character(for: name) ?? "")  :\(name):", isOn: Binding(
-                    get: { isMine },
-                    set: { _ in workspace.toggleReaction(name, on: message, in: channel) }
-                ))
+                let isMine =
+                    message.reactions.first { $0.name == name }?.users.contains(workspace.account.userID) ?? false
+                Toggle(
+                    "\(Emoji.character(for: name) ?? "")  :\(name):",
+                    isOn: Binding(
+                        get: { isMine },
+                        set: { _ in workspace.toggleReaction(name, on: message, in: channel) }
+                    ))
             }
             Divider()
             Button("More…") { window.reactingTo = ReactionTarget(channel: channel, message: message) }
@@ -108,8 +115,10 @@ struct MessageItem: View {
             Divider()
             Button("Edit…") { window.editing = MessageEdit(message, in: channel) }
                 .keyboardShortcut(Shortcuts.edit)
-            Button("Delete…", role: .destructive) { window.deleting = ReactionTarget(channel: channel, message: message) }
-                .keyboardShortcut(Shortcuts.delete)
+            Button("Delete…", role: .destructive) {
+                window.deleting = ReactionTarget(channel: channel, message: message)
+            }
+            .keyboardShortcut(Shortcuts.delete)
         }
     }
 
@@ -124,7 +133,8 @@ struct MessageItem: View {
     /// Consecutive messages from one author within five minutes share a header.
     static func showsHeader(_ messages: [SlackMessage], at index: Int) -> Bool {
         guard index > 0 else { return true }
-        let previous = messages[index - 1], message = messages[index]
+        let previous = messages[index - 1]
+        let message = messages[index]
         return previous.userID != message.userID
             || previous.username != message.username
             || message.date.timeIntervalSince(previous.date) > 5 * 60
@@ -171,8 +181,9 @@ struct MessageRow<Footer: View>: View {
                     if let animation {
                         // Redrawn as frames change; the text is laid out once.
                         TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
-                            text.textRenderer(AnimatedEmojiRenderer(
-                                time: context.date.timeIntervalSinceReferenceDate, animation: animation))
+                            text.textRenderer(
+                                AnimatedEmojiRenderer(
+                                    time: context.date.timeIntervalSinceReferenceDate, animation: animation))
                         }
                         .foregroundStyle(isSystem ? .secondary : .primary)
                     } else {
@@ -301,9 +312,9 @@ struct ComposerView<Status: View>: View {
                             return .handled
                         }
                 }
-            .padding(10)
-            .background(RoundedRectangle(cornerRadius: 8).strokeBorder(.separator))
-            .onChange(of: draft) { highlighted = 0 }
+                .padding(10)
+                .background(RoundedRectangle(cornerRadius: 8).strokeBorder(.separator))
+                .onChange(of: draft) { highlighted = 0 }
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 12)
@@ -358,7 +369,9 @@ private struct SuggestionList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(suggestions.enumerated()), id: \.element.id) { index, suggestion in
-                Button { take(suggestion) } label: {
+                Button {
+                    take(suggestion)
+                } label: {
                     HStack {
                         Text(suggestion.title).fontWeight(.medium)
                         if let detail = suggestion.detail { Text(detail).foregroundStyle(.secondary) }
@@ -367,8 +380,9 @@ private struct SuggestionList: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
                     .contentShape(Rectangle())
-                    .background(index == highlighted ? AnyShapeStyle(.selection) : AnyShapeStyle(.clear),
-                                in: RoundedRectangle(cornerRadius: 6))
+                    .background(
+                        index == highlighted ? AnyShapeStyle(.selection) : AnyShapeStyle(.clear),
+                        in: RoundedRectangle(cornerRadius: 6))
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("suggestion-\(suggestion.id)")
@@ -452,11 +466,12 @@ private struct JumbomojiView: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(items.map { item -> String in
-            switch item {
-            case .character(let character): character
-            case .shortcode(let name): name.replacing("_", with: " ")
-            }
-        }.joined(separator: ", "))
+        .accessibilityLabel(
+            items.map { item -> String in
+                switch item {
+                case .character(let character): character
+                case .shortcode(let name): name.replacing("_", with: " ")
+                }
+            }.joined(separator: ", "))
     }
 }

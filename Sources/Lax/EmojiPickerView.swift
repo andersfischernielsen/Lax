@@ -20,11 +20,15 @@ struct EmojiPickerView: View {
             ScrollView {
                 LazyVGrid(columns: Array(repeating: GridItem(.fixed(36)), count: 10), spacing: 4) {
                     ForEach(names, id: \.self) { name in
-                        Button { pick(name) } label: { cell(name) }
-                            .buttonStyle(.plain)
-                            .help(":\(name):")
-                            .accessibilityLabel(name.replacing("_", with: " "))
-                            .onAppear { if Emoji.character(for: name) == nil { requestImages([name]) } }
+                        Button {
+                            pick(name)
+                        } label: {
+                            cell(name)
+                        }
+                        .buttonStyle(.plain)
+                        .help(":\(name):")
+                        .accessibilityLabel(name.replacing("_", with: " "))
+                        .onAppear { if Emoji.character(for: name) == nil { requestImages([name]) } }
                     }
                 }
                 .padding(.horizontal, 12)

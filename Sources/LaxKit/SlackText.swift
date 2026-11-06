@@ -28,10 +28,12 @@ public struct SlackText: Sendable {
     /// A workspace's custom emoji by name.
     public var customEmoji: @Sendable (String) -> SlackEmoji?
 
-    public init(userName: @escaping @Sendable (String) -> String? = { _ in nil },
-                channelName: @escaping @Sendable (String) -> String? = { _ in nil },
-                subteamHandle: @escaping @Sendable (String) -> String? = { _ in nil },
-                customEmoji: @escaping @Sendable (String) -> SlackEmoji? = { _ in nil }) {
+    public init(
+        userName: @escaping @Sendable (String) -> String? = { _ in nil },
+        channelName: @escaping @Sendable (String) -> String? = { _ in nil },
+        subteamHandle: @escaping @Sendable (String) -> String? = { _ in nil },
+        customEmoji: @escaping @Sendable (String) -> SlackEmoji? = { _ in nil }
+    ) {
         self.userName = userName
         self.channelName = channelName
         self.subteamHandle = subteamHandle
@@ -183,13 +185,14 @@ public struct SlackText: Sendable {
         String(text).replacing("&lt;", with: "<").replacing("&gt;", with: ">").replacing("&amp;", with: "&")
     }
 
-    private static let emphasis = try! NSRegularExpression(pattern: [
-        #"```\n?([\s\S]+?)\n?```"#,
-        #"`([^`\n]+)`"#,
-        #"(?<![\w*])\*(?=\S)([^*\n]+?)(?<=\S)\*(?![\w*])"#,
-        #"(?<![\w_])_(?=\S)([^_\n]+?)(?<=\S)_(?![\w_])"#,
-        #"(?<![\w~])~(?=\S)([^~\n]+?)(?<=\S)~(?![\w~])"#,
-    ].joined(separator: "|"))
+    private static let emphasis = try! NSRegularExpression(
+        pattern: [
+            #"```\n?([\s\S]+?)\n?```"#,
+            #"`([^`\n]+)`"#,
+            #"(?<![\w*])\*(?=\S)([^*\n]+?)(?<=\S)\*(?![\w*])"#,
+            #"(?<![\w_])_(?=\S)([^_\n]+?)(?<=\S)_(?![\w_])"#,
+            #"(?<![\w~])~(?=\S)([^~\n]+?)(?<=\S)~(?![\w~])"#,
+        ].joined(separator: "|"))
 
     private static let intents: [InlinePresentationIntent] = [
         .code, .code, .stronglyEmphasized, .emphasized, .strikethrough,

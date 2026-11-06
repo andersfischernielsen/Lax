@@ -33,12 +33,16 @@ public struct SlackAPIClient: Sendable {
                 throw SlackAPIError.http(status: http.statusCode)
             }
             let decoded = try Self.decode(Response.self, from: data)
-            Log.api.debug("\(method, privacy: .public) ok on \(host, privacy: .public) in \(ContinuousClock.now - start, privacy: .public)")
+            Log.api.debug(
+                "\(method, privacy: .public) ok on \(host, privacy: .public) in \(ContinuousClock.now - start, privacy: .public)"
+            )
             return decoded
         } catch {
             let error = Self.normalized(error)
             if !(error is CancellationError) {
-                Log.api.error("\(method, privacy: .public) failed on \(host, privacy: .public): \(Log.describe(error), privacy: .public)")
+                Log.api.error(
+                    "\(method, privacy: .public) failed on \(host, privacy: .public): \(Log.describe(error), privacy: .public)"
+                )
             }
             throw error
         }

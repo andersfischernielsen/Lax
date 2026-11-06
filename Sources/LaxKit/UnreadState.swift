@@ -32,8 +32,10 @@ public struct UnreadState: Equatable, Sendable {
     }
 
     /// A new message arrived over the real-time connection.
-    public mutating func received(_ message: SlackMessage, in conversation: SlackConversation,
-                                  ownUserID: String, isOpen: Bool) {
+    public mutating func received(
+        _ message: SlackMessage, in conversation: SlackConversation,
+        ownUserID: String, isOpen: Bool
+    ) {
         guard !isOpen, message.userID != ownUserID, message.isChannelLevel else { return }
         var counts = self[conversation.id]
         counts.hasUnreads = true

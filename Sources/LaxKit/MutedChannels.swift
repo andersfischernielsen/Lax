@@ -17,7 +17,8 @@ public struct MutePrefs: Equatable, Sendable {
         var muted = Set((mutedChannels ?? "").split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) })
         muted.remove("")
         if let json = allNotificationsPrefs?.data(using: .utf8),
-           let prefs = try? JSONDecoder().decode(NotificationPrefs.self, from: json) {
+            let prefs = try? JSONDecoder().decode(NotificationPrefs.self, from: json)
+        {
             for (id, channel) in prefs.channels ?? [:] {
                 if channel.muted == true { muted.insert(id) } else if channel.muted == false { muted.remove(id) }
             }
@@ -46,15 +47,18 @@ public struct MutePrefs: Equatable, Sendable {
 extension SlackAPIClient {
     public func mutePrefs() async throws -> MutePrefs {
         let response: PrefsResponse = try await call("users.prefs.get")
-        return MutePrefs(mutedChannels: response.prefs.mutedChannels,
-                         allNotificationsPrefs: response.prefs.allNotificationsPrefs)
+        return MutePrefs(
+            mutedChannels: response.prefs.mutedChannels,
+            allNotificationsPrefs: response.prefs.allNotificationsPrefs)
     }
 
     /// Mutes or unmutes a conversation for the user, the way Slack's web client does.
     public func setMuted(_ muted: Bool, channel: String) async throws {
-        let _: PrefsAck = try await call("users.prefs.setNotifications", [
-            "name": "muted", "value": muted ? "true" : "false", "channel_id": channel, "global": "false",
-        ])
+        let _: PrefsAck = try await call(
+            "users.prefs.setNotifications",
+            [
+                "name": "muted", "value": muted ? "true" : "false", "channel_id": channel, "global": "false",
+            ])
     }
 }
 

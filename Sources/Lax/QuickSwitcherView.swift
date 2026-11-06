@@ -15,10 +15,11 @@ struct QuickSwitcherView: View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                CommandField(placeholder: "Go to a channel or person", text: $query,
-                             move: { move($0, in: ids) },
-                             submit: { if let id = highlighted ?? ids.first { open(id) } },
-                             cancel: close)
+                CommandField(
+                    placeholder: "Go to a channel or person", text: $query,
+                    move: { move($0, in: ids) },
+                    submit: { if let id = highlighted ?? ids.first { open(id) } },
+                    cancel: close)
             }
             .padding(12)
             // Just the field until something is typed, like Spotlight.

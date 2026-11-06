@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import LaxKit
 
 @Test func readsTheLegacyList() {
@@ -7,8 +8,10 @@ import Testing
 }
 
 @Test func notificationPrefsAddAndOverride() {
-    let prefs = MutePrefs(mutedChannels: "C1,C2", allNotificationsPrefs:
-        #"{"channels":{"C2":{"muted":false},"C3":{"muted":true},"C4":{"desktop":"all"}},"global":{}}"#)
+    let prefs = MutePrefs(
+        mutedChannels: "C1,C2",
+        allNotificationsPrefs:
+            #"{"channels":{"C2":{"muted":false},"C3":{"muted":true},"C4":{"desktop":"all"}},"global":{}}"#)
     #expect(prefs.muted == ["C1", "C3"])
 }
 

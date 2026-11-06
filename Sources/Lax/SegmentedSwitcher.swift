@@ -16,8 +16,9 @@ struct SegmentedSwitcher: NSViewRepresentable {
         let images = segments.map {
             NSImage(systemSymbolName: $0.systemImage, accessibilityDescription: $0.title) ?? NSImage()
         }
-        let control = NSSegmentedControl(images: images, trackingMode: .selectOne,
-                                         target: context.coordinator, action: #selector(Coordinator.changed(_:)))
+        let control = NSSegmentedControl(
+            images: images, trackingMode: .selectOne,
+            target: context.coordinator, action: #selector(Coordinator.changed(_:)))
         control.segmentDistribution = .fillEqually
         for (index, segment) in segments.enumerated() {
             control.setToolTip(segment.title, forSegment: index)

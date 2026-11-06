@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import LaxKit
 
 private let credentials = SlackCredentials(
@@ -33,9 +34,10 @@ private let credentials = SlackCredentials(
 }
 
 @Test func decodesSuccessfulResponse() throws {
-    let json = Data("""
-    {"ok":true,"url":"https://example.slack.com/","team":"Example","user":"me","team_id":"T1","user_id":"U1"}
-    """.utf8)
+    let json = Data(
+        """
+        {"ok":true,"url":"https://example.slack.com/","team":"Example","user":"me","team_id":"T1","user_id":"U1"}
+        """.utf8)
     let response = try SlackAPIClient.decode(AuthTestResponse.self, from: json)
     #expect(response.teamID == "T1")
     #expect(response.userID == "U1")

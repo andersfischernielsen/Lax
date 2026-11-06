@@ -12,8 +12,10 @@ public enum ConversationNavigation {
 
     /// The nearest unread conversation in `direction` (+1 down, -1 up), wrapping around and
     /// skipping `current`; nil when nothing else is unread.
-    public static func nextUnread(from current: String?, in order: [String], direction: Int,
-                                  isUnread: (String) -> Bool) -> String? {
+    public static func nextUnread(
+        from current: String?, in order: [String], direction: Int,
+        isUnread: (String) -> Bool
+    ) -> String? {
         guard !order.isEmpty else { return nil }
         let start = current.flatMap { order.firstIndex(of: $0) } ?? (direction >= 0 ? order.count - 1 : 0)
         let step = direction >= 0 ? 1 : -1

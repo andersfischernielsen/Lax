@@ -11,12 +11,19 @@ public enum JSONValue: Decodable, Hashable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.singleValueContainer()
-        if c.decodeNil() { self = .null }
-        else if let value = try? c.decode(String.self) { self = .string(value) }
-        else if let value = try? c.decode(Bool.self) { self = .bool(value) }
-        else if let value = try? c.decode(Double.self) { self = .number(value) }
-        else if let value = try? c.decode([JSONValue].self) { self = .array(value) }
-        else { self = .object(try c.decode([String: JSONValue].self)) }
+        if c.decodeNil() {
+            self = .null
+        } else if let value = try? c.decode(String.self) {
+            self = .string(value)
+        } else if let value = try? c.decode(Bool.self) {
+            self = .bool(value)
+        } else if let value = try? c.decode(Double.self) {
+            self = .number(value)
+        } else if let value = try? c.decode([JSONValue].self) {
+            self = .array(value)
+        } else {
+            self = .object(try c.decode([String: JSONValue].self))
+        }
     }
 
     public subscript(key: String) -> JSONValue? {
@@ -81,7 +88,8 @@ public enum BlockKit {
         case "rich_text_preformatted":
             return "```\(inline)```"
         case "rich_text_quote":
-            return inline.split(separator: "\n", omittingEmptySubsequences: false).map { "> \($0)" }.joined(separator: "\n")
+            return inline.split(separator: "\n", omittingEmptySubsequences: false).map { "> \($0)" }.joined(
+                separator: "\n")
         case "rich_text_list":
             let ordered = element["style"]?.string == "ordered"
             let depth = Int(element["indent"]?.number ?? 0)
@@ -124,7 +132,8 @@ public enum BlockKit {
     /// (`*bold *` wouldn't parse as bold).
     private static func styled(_ text: String, _ style: JSONValue?) -> String {
         guard let style, !text.trimmingCharacters(in: .whitespaces).isEmpty else { return text }
-        let leading = text.prefix { $0 == " " }, trailing = String(text.reversed().prefix { $0 == " " })
+        let leading = text.prefix { $0 == " " }
+        let trailing = String(text.reversed().prefix { $0 == " " })
         var core = text.trimmingCharacters(in: .whitespaces)
         if style["code"]?.bool == true { core = "`\(core)`" }
         if style["bold"]?.bool == true { core = "*\(core)*" }
@@ -161,7 +170,8 @@ extension BlockKit {
     public static func buttons(in blocks: [JSONValue]) -> [BlockButton] {
         blocks.flatMap { block -> [BlockButton] in
             let blockID = block["block_id"]?.string ?? ""
-            let elements = block["type"]?.string == "actions"
+            let elements =
+                block["type"]?.string == "actions"
                 ? block["elements"]?.array ?? []
                 : block["accessory"].map { [$0] } ?? []
             return elements.compactMap { button($0, blockID: blockID) }
@@ -170,9 +180,11 @@ extension BlockKit {
 
     private static func button(_ element: JSONValue, blockID: String) -> BlockButton? {
         guard element["type"]?.string == "button", let actionID = element["action_id"]?.string,
-              let text = element["text"]?["text"]?.string else { return nil }
-        return BlockButton(blockID: blockID, actionID: actionID, text: text, value: element["value"]?.string,
-                           url: element["url"]?.string.flatMap(URL.init(string:)),
-                           style: element["style"]?.string.flatMap(BlockButton.Style.init(rawValue:)))
+            let text = element["text"]?["text"]?.string
+        else { return nil }
+        return BlockButton(
+            blockID: blockID, actionID: actionID, text: text, value: element["value"]?.string,
+            url: element["url"]?.string.flatMap(URL.init(string:)),
+            style: element["style"]?.string.flatMap(BlockButton.Style.init(rawValue:)))
     }
 }

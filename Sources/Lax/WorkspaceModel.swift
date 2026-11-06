@@ -1,5 +1,5 @@
-import AppKit
 import AVFoundation
+import AppKit
 import LaxKit
 import Observation
 
@@ -108,7 +108,7 @@ final class WorkspaceModel: Identifiable {
     }
 
     func stop() {
-        tasks.forEach { $0.cancel() }
+        for task in tasks { task.cancel() }
         tasks = []
     }
 
@@ -161,15 +161,17 @@ final class WorkspaceModel: Identifiable {
     /// Waits briefly for scrolling to settle, so passing many messages sends one update.
     private func markRead(_ channel: String) {
         guard isLive, visible[channel] != nil,
-              readPositionKnown.contains(channel),
-              NSApplication.shared.isActive,
-              let seen = seenTS[channel],
-              SlackTimestamp.isBefore(markedReadTS[channel] ?? "0", seen) else { return }
+            readPositionKnown.contains(channel),
+            NSApplication.shared.isActive,
+            let seen = seenTS[channel],
+            SlackTimestamp.isBefore(markedReadTS[channel] ?? "0", seen)
+        else { return }
         markReadTasks[channel]?.cancel()
         markReadTasks[channel] = Task {
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled, let position = seenTS[channel],
-                  SlackTimestamp.isBefore(markedReadTS[channel] ?? "0", position) else { return }
+                SlackTimestamp.isBefore(markedReadTS[channel] ?? "0", position)
+            else { return }
             markedReadTS[channel] = position
             // The "New" line follows the read position: it moves down to the first unread
             // message, and goes once everything has been read.
@@ -191,7 +193,10 @@ final class WorkspaceModel: Identifiable {
     var directMessagesByActivity: [(conversation: SlackConversation, name: String)] {
         conversations.filter(\.isDirect)
             .map { (conversation: $0, name: displayName(of: $0)) }
-            .sorted { (latestActivity[$0.conversation.id] ?? "0").localizedStandardCompare(latestActivity[$1.conversation.id] ?? "0") == .orderedDescending }
+            .sorted {
+                (latestActivity[$0.conversation.id] ?? "0").localizedStandardCompare(
+                    latestActivity[$1.conversation.id] ?? "0") == .orderedDescending
+            }
     }
 
     /// Conversation order for keyboard navigation in an area.
@@ -260,8 +265,9 @@ final class WorkspaceModel: Identifiable {
     }
 
     func displayName(of conversation: SlackConversation) -> String {
-        conversation.displayName(userName: userName, members: groupMembers[conversation.id],
-                                 ownUserID: account.userID)
+        conversation.displayName(
+            userName: userName, members: groupMembers[conversation.id],
+            ownUserID: account.userID)
     }
 
     func authorName(of message: SlackMessage) -> String {
@@ -271,10 +277,11 @@ final class WorkspaceModel: Identifiable {
     /// A formatter that looks names up as it goes, so a view using it depends only on
     /// the names its text mentions. For use on the main actor, in views.
     func textFormatter() -> SlackText {
-        SlackText(userName: { id in MainActor.assumeIsolated { self.userName(id) } },
-                  channelName: { id in MainActor.assumeIsolated { self.channelNames[id] } },
-                  subteamHandle: { id in MainActor.assumeIsolated { self.userGroupHandles[id] } },
-                  customEmoji: { name in MainActor.assumeIsolated { self.customEmoji[name] } })
+        SlackText(
+            userName: { id in MainActor.assumeIsolated { self.userName(id) } },
+            channelName: { id in MainActor.assumeIsolated { self.channelNames[id] } },
+            subteamHandle: { id in MainActor.assumeIsolated { self.userGroupHandles[id] } },
+            customEmoji: { name in MainActor.assumeIsolated { self.customEmoji[name] } })
     }
 
     /// A message's text, formatted and styled, from the cache when nothing it shows changed.
@@ -312,7 +319,8 @@ final class WorkspaceModel: Identifiable {
             // A page already on its way (the first, as the conversation opens) comes first.
             while loadingHistory.contains(channel) { try? await Task.sleep(for: .milliseconds(50)) }
             if let timeline = timelines[channel],
-               !timeline.hasOlder || timeline.oldestTS.map({ !SlackTimestamp.isBefore(ts, $0) }) ?? false {
+                !timeline.hasOlder || timeline.oldestTS.map({ !SlackTimestamp.isBefore(ts, $0) }) ?? false
+            {
                 return
             }
             await fetchOlder(in: channel)
@@ -322,8 +330,9 @@ final class WorkspaceModel: Identifiable {
     private func loadConversations() async {
         do {
             conversations = try await client.conversations()
-            channelNames = Dictionary(conversations.compactMap { c in c.name.map { (c.id, $0) } },
-                                      uniquingKeysWith: { first, _ in first })
+            channelNames = Dictionary(
+                conversations.compactMap { c in c.name.map { (c.id, $0) } },
+                uniquingKeysWith: { first, _ in first })
             requestUsers(Set(conversations.compactMap(\.userID)))
             await loadGroupMembers()
         } catch {
@@ -474,20 +483,25 @@ final class WorkspaceModel: Identifiable {
         switch token.kind {
         case .mention:
             let specials = ["here", "channel", "everyone"].map {
-                Suggestion(id: "!\($0)", title: "@\($0)", detail: "Notify everyone here", insert: "@\($0)", token: "<!\($0)>")
+                Suggestion(
+                    id: "!\($0)", title: "@\($0)", detail: "Notify everyone here", insert: "@\($0)", token: "<!\($0)>")
             }
             let groups = userGroupHandles.map { id, handle in
-                Suggestion(id: id, title: "@\(handle)", detail: "Group", insert: "@\(handle)", token: "<!subteam^\(id)>")
+                Suggestion(
+                    id: id, title: "@\(handle)", detail: "Group", insert: "@\(handle)", token: "<!subteam^\(id)>")
             }
             let people = users.keys.compactMap { users[$0] }.filter { !$0.isBot && !$0.isDeleted }.map { user in
-                Suggestion(id: user.id, title: user.preferredName, detail: "@" + user.name,
-                           insert: "@" + user.preferredName, token: "<@\(user.id)>")
+                Suggestion(
+                    id: user.id, title: user.preferredName, detail: "@" + user.name,
+                    insert: "@" + user.preferredName, token: "<@\(user.id)>")
             }
             return ranked(people + groups + specials, query: token.query, limit: limit)
         case .channel:
             let channels = conversations.filter { !$0.isDirect }.compactMap { conversation in
                 conversation.name.map {
-                    Suggestion(id: conversation.id, title: "#" + $0, detail: nil, insert: "#" + $0, token: "<#\(conversation.id)>")
+                    Suggestion(
+                        id: conversation.id, title: "#" + $0, detail: nil, insert: "#" + $0,
+                        token: "<#\(conversation.id)>")
                 }
             }
             return ranked(channels, query: token.query, limit: limit)
@@ -500,7 +514,9 @@ final class WorkspaceModel: Identifiable {
 
     private func ranked(_ suggestions: [Suggestion], query: String, limit: Int) -> [Suggestion] {
         let byID = Dictionary(suggestions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let candidates = suggestions.map { QuickSwitcher.Candidate(id: $0.id, name: String($0.title.dropFirst($0.title.hasPrefix("@") ? 1 : 0))) }
+        let candidates = suggestions.map {
+            QuickSwitcher.Candidate(id: $0.id, name: String($0.title.dropFirst($0.title.hasPrefix("@") ? 1 : 0)))
+        }
         return QuickSwitcher.rank(candidates, query: query, limit: limit).compactMap { byID[$0] }
     }
 
@@ -594,7 +610,8 @@ final class WorkspaceModel: Identifiable {
     /// attachments, the first attachment's pretext, title or text.
     func previewText(of message: SlackMessage) -> String {
         let text = plainText(of: message)
-        let preview = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let preview =
+            text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? message.attachments.lazy.compactMap { $0.pretext ?? $0.title ?? $0.body }.first
                 .map { textFormatter().plain($0) } ?? ""
             : text
@@ -638,7 +655,8 @@ final class WorkspaceModel: Identifiable {
 
     func loadMoreFollowedThreads() {
         guard hasMoreFollowedThreads, !loadingFollowedThreads,
-              let oldest = followedThreads?.last?.latestReplyTS ?? followedThreads?.last?.root.ts else { return }
+            let oldest = followedThreads?.last?.latestReplyTS ?? followedThreads?.last?.root.ts
+        else { return }
         loadingFollowedThreads = true
         Task {
             defer { loadingFollowedThreads = false }
@@ -655,8 +673,9 @@ final class WorkspaceModel: Identifiable {
         followedThreads = followedThreads?.markingRead(thread.id)
         threadsUnread.hasUnreads = followedThreads?.contains { $0.unreadReplies > 0 } ?? false
         Task {
-            try? await client.markThreadRead(channel: thread.channelID, threadTS: thread.root.ts,
-                                             ts: thread.latestReplyTS ?? thread.root.ts)
+            try? await client.markThreadRead(
+                channel: thread.channelID, threadTS: thread.root.ts,
+                ts: thread.latestReplyTS ?? thread.root.ts)
         }
     }
 

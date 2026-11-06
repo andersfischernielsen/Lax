@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import LaxKit
 
 private func styled(_ text: String, _ intent: InlinePresentationIntent) -> AttributedString {
@@ -13,7 +14,8 @@ private func styled(_ text: String, _ intent: InlinePresentationIntent) -> Attri
 }
 
 @Test func stylesBecomeSlackMarkers() {
-    let text = AttributedString("say ") + styled("hi", .stronglyEmphasized) + AttributedString(", ")
+    let text =
+        AttributedString("say ") + styled("hi", .stronglyEmphasized) + AttributedString(", ")
         + styled("soft", .emphasized) + AttributedString(" and ") + styled("gone", .strikethrough)
         + AttributedString(" in ") + styled("code", .code)
     #expect(SlackMarkdown.mrkdwn(from: text) == "say *hi*, _soft_ and ~gone~ in `code`")
@@ -24,8 +26,10 @@ private func styled(_ text: String, _ intent: InlinePresentationIntent) -> Attri
 }
 
 @Test func markersHugTheTextAndEachLine() {
-    #expect(SlackMarkdown.mrkdwn(from: AttributedString("a") + styled(" bold ", .stronglyEmphasized) + AttributedString("b"))
-        == "a *bold* b")
+    #expect(
+        SlackMarkdown.mrkdwn(
+            from: AttributedString("a") + styled(" bold ", .stronglyEmphasized) + AttributedString("b"))
+            == "a *bold* b")
     #expect(SlackMarkdown.mrkdwn(from: styled("one\ntwo", .stronglyEmphasized)) == "*one*\n*two*")
     #expect(SlackMarkdown.mrkdwn(from: styled("   ", .stronglyEmphasized)) == "   ")
 }

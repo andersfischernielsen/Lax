@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import LaxKit
 
 private func message(_ ts: String, _ text: String = "", thread: String? = nil, subtype: String? = nil) -> SlackMessage {
@@ -87,9 +88,11 @@ private func message(_ ts: String, _ text: String = "", thread: String? = nil, s
 }
 
 @Test func threadTimelinesHoldParentAndReplies() {
-    let thread = Timeline(thread: "1.0", messages: [
-        message("1.0", thread: "1.0"), message("2.0", thread: "1.0"), message("3.0", thread: "9.0"), message("4.0"),
-    ])
+    let thread = Timeline(
+        thread: "1.0",
+        messages: [
+            message("1.0", thread: "1.0"), message("2.0", thread: "1.0"), message("3.0", thread: "9.0"), message("4.0"),
+        ])
     #expect(thread.messages.map(\.ts) == ["1.0", "2.0"])
     #expect(!thread.hasOlder)
     var live = thread

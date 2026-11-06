@@ -1,13 +1,18 @@
 import Foundation
 import Testing
+
 @testable import LaxKit
 
 private let text = SlackText(
     userName: { ["U1": "jane"][$0] },
     channelName: { ["C1": "general"][$0] },
     subteamHandle: { ["S1": "platform"][$0] },
-    customEmoji: { ["hi-wave": .image(URL(string: "https://emoji.slack-edge.com/T1/hi-wave/1.gif")!),
-                    "yes": .character("👍")][$0] }
+    customEmoji: {
+        [
+            "hi-wave": .image(URL(string: "https://emoji.slack-edge.com/T1/hi-wave/1.gif")!),
+            "yes": .character("👍"),
+        ][$0]
+    }
 )
 
 private func runs(_ attributed: AttributedString) -> [(String, InlinePresentationIntent?)] {
@@ -61,7 +66,8 @@ private func runs(_ attributed: AttributedString) -> [(String, InlinePresentatio
 }
 
 @Test func turnsLinksIntoLinkRuns() {
-    let attributed = text.attributed("go <https://example.com/a?b=1&amp;c=2|here> or <mailto:a@b.c|a@b.c> or <https://x.io>")
+    let attributed = text.attributed(
+        "go <https://example.com/a?b=1&amp;c=2|here> or <mailto:a@b.c|a@b.c> or <https://x.io>")
     #expect(String(attributed.characters) == "go here or a@b.c or https://x.io")
     let links = attributed.runs.compactMap(\.link).map(\.absoluteString)
     #expect(links == ["https://example.com/a?b=1&c=2", "mailto:a@b.c", "https://x.io"])
@@ -105,7 +111,8 @@ private func runs(_ attributed: AttributedString) -> [(String, InlinePresentatio
 
 @Test func sendingEscapesTextButKeepsTokens() {
     #expect(SlackText.encodedForSending("a < b && c > d") == "a &lt; b &amp;&amp; c &gt; d")
-    #expect(SlackText.encodedForSending("hi <@U1> see <https://x.io?a=1&b=2|docs> <!here> <not a token>")
+    #expect(
+        SlackText.encodedForSending("hi <@U1> see <https://x.io?a=1&b=2|docs> <!here> <not a token>")
             == "hi <@U1> see <https://x.io?a=1&b=2|docs> <!here> &lt;not a token&gt;")
 }
 

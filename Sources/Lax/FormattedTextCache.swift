@@ -43,16 +43,17 @@ final class FormattedTextCache {
             return entry.text
         }
         recorded = [:]
-        let text = format(SlackText(
-            userName: { id in MainActor.assumeIsolated { self.name(.user(id)) } },
-            channelName: { id in MainActor.assumeIsolated { self.name(.channel(id)) } },
-            subteamHandle: { id in MainActor.assumeIsolated { self.name(.group(id)) } },
-            customEmoji: { name in
-                MainActor.assumeIsolated {
-                    if case .emoji(let emoji) = self.record(.emoji(name)) { emoji } else { nil }
+        let text = format(
+            SlackText(
+                userName: { id in MainActor.assumeIsolated { self.name(.user(id)) } },
+                channelName: { id in MainActor.assumeIsolated { self.name(.channel(id)) } },
+                subteamHandle: { id in MainActor.assumeIsolated { self.name(.group(id)) } },
+                customEmoji: { name in
+                    MainActor.assumeIsolated {
+                        if case .emoji(let emoji) = self.record(.emoji(name)) { emoji } else { nil }
+                    }
                 }
-            }
-        ))
+            ))
         if entries.count >= Self.capacity { entries.removeAll() }
         entries[markup] = Entry(text: text, lookups: recorded)
         return text

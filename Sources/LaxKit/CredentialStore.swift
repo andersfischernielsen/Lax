@@ -15,8 +15,9 @@ public struct CredentialStore: Sendable {
 
     public func save(_ account: SlackAccount) throws {
         let data = try JSONEncoder().encode(account)
-        let status = SecItemUpdate(query(account: account.id) as CFDictionary,
-                                   [kSecValueData: data] as CFDictionary)
+        let status = SecItemUpdate(
+            query(account: account.id) as CFDictionary,
+            [kSecValueData: data] as CFDictionary)
         if status == errSecItemNotFound {
             var item = query(account: account.id)
             item[kSecValueData] = data
@@ -42,10 +43,12 @@ public struct CredentialStore: Sendable {
     public func loadAll() throws -> [SlackAccount] {
         // The file-based keychain can't return data for many items at once,
         // so list the item names first and load each one.
-        let item: [CFString: Any] = [kSecClass: kSecClassGenericPassword,
-                                     kSecAttrService: service,
-                                     kSecReturnAttributes: true,
-                                     kSecMatchLimit: kSecMatchLimitAll]
+        let item: [CFString: Any] = [
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: service,
+            kSecReturnAttributes: true,
+            kSecMatchLimit: kSecMatchLimitAll,
+        ]
         var result: CFTypeRef?
         let status = SecItemCopyMatching(item as CFDictionary, &result)
         if status == errSecItemNotFound { return [] }
@@ -60,9 +63,11 @@ public struct CredentialStore: Sendable {
     }
 
     private func query(account: String) -> [CFString: Any] {
-        [kSecClass: kSecClassGenericPassword,
-         kSecAttrService: service,
-         kSecAttrAccount: account]
+        [
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: service,
+            kSecAttrAccount: account,
+        ]
     }
 
     private func check(_ status: OSStatus) throws {

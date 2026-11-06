@@ -20,25 +20,28 @@ enum DemoScene: String, CaseIterable {
 
     static var current: DemoScene? {
         guard DemoSlack.isEnabled, let index = CommandLine.arguments.firstIndex(of: "-demo-scene"),
-              CommandLine.arguments.indices.contains(index + 1) else { return nil }
+            CommandLine.arguments.indices.contains(index + 1)
+        else { return nil }
         return DemoScene(rawValue: CommandLine.arguments[index + 1])
     }
 
     /// What the window shows from its first frame.
     @MainActor
     func prepare(_ window: WindowModel) {
-        window.area = switch self {
-        case .directMessages: .directMessages
-        case .threads: .threads
-        default: .channels
-        }
-        window.conversationID = switch self {
-        case .directMessages: "D1"
-        case .bot: "C5"
-        case .video: "C2"
-        case .threads: nil
-        default: "C1"
-        }
+        window.area =
+            switch self {
+            case .directMessages: .directMessages
+            case .threads: .threads
+            default: .channels
+            }
+        window.conversationID =
+            switch self {
+            case .directMessages: "D1"
+            case .bot: "C5"
+            case .video: "C2"
+            case .threads: nil
+            default: "C1"
+            }
         switch self {
         case .thread:
             window.openThread(DemoSlack.allHandsTS, in: "C1")
@@ -54,8 +57,10 @@ enum DemoScene: String, CaseIterable {
 
     /// What needs the workspace loaded first: drafts, searches, sheets and other windows.
     @MainActor
-    func finish(_ window: WindowModel, workspace: () -> WorkspaceModel?, openWindow: OpenWindowAction,
-                openSettings: OpenSettingsAction) async {
+    func finish(
+        _ window: WindowModel, workspace: () -> WorkspaceModel?, openWindow: OpenWindowAction,
+        openSettings: OpenSettingsAction
+    ) async {
         // The workspace appears just after the window, then its conversations and names load.
         var loaded: WorkspaceModel?
         for _ in 0..<80 {
@@ -83,10 +88,12 @@ enum DemoScene: String, CaseIterable {
             }
         case .media:
             TabJoiner.opener = NSApp.keyWindow
-            openWindow(id: "media", value: MediaItem(
-                accountID: workspace.account.id, kind: .image,
-                url: URL(string: "https://files.slack.com/demo/office.png")!, name: "office.png",
-                permalink: URL(string: "https://acme.slack.com/files/F1")))
+            openWindow(
+                id: "media",
+                value: MediaItem(
+                    accountID: workspace.account.id, kind: .image,
+                    url: URL(string: "https://files.slack.com/demo/office.png")!, name: "office.png",
+                    permalink: URL(string: "https://acme.slack.com/files/F1")))
         case .settings:
             openSettings()
         default:

@@ -8,8 +8,10 @@ public struct SlackAccount: Codable, Hashable, Identifiable, Sendable {
     public var userName: String
     public var credentials: SlackCredentials
 
-    public init(teamID: String, userID: String, teamName: String, userName: String,
-                credentials: SlackCredentials) {
+    public init(
+        teamID: String, userID: String, teamName: String, userName: String,
+        credentials: SlackCredentials
+    ) {
         self.teamID = teamID
         self.userID = userID
         self.teamName = teamName
@@ -20,9 +22,12 @@ public struct SlackAccount: Codable, Hashable, Identifiable, Sendable {
     public var id: String { "\(teamID):\(userID)" }
 
     /// Checks the credentials with `auth.test` and fills in the identity.
-    public static func verify(_ credentials: SlackCredentials, session: URLSession = .shared) async throws -> SlackAccount {
+    public static func verify(_ credentials: SlackCredentials, session: URLSession = .shared) async throws
+        -> SlackAccount
+    {
         let auth = try await SlackAPIClient(credentials: credentials, session: session).authTest()
-        return SlackAccount(teamID: auth.teamID, userID: auth.userID, teamName: auth.team,
-                            userName: auth.user, credentials: credentials)
+        return SlackAccount(
+            teamID: auth.teamID, userID: auth.userID, teamName: auth.team,
+            userName: auth.user, credentials: credentials)
     }
 }

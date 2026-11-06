@@ -20,8 +20,9 @@ struct SearchResultsView: View {
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 16)
                                 .padding(.top, 12)
-                            MessageItem(workspace: workspace, channel: result.channelID, message: result.message,
-                                        showsHeader: true, showsThreadLink: false)
+                            MessageItem(
+                                workspace: workspace, channel: result.channelID, message: result.message,
+                                showsHeader: true, showsThreadLink: false)
                             Text(result.message.date, format: .dateTime.day().month().year())
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)

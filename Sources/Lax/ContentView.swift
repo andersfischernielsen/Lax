@@ -10,8 +10,9 @@ struct ContentView: View {
     @SceneStorage("area") private var storedArea = WindowModel.Area.channels
 
     var body: some View {
-        WindowContent(model: model, storedAccount: $storedAccount,
-                      storedConversation: $storedConversation, storedArea: $storedArea)
+        WindowContent(
+            model: model, storedAccount: $storedAccount,
+            storedConversation: $storedConversation, storedArea: $storedArea)
     }
 }
 
@@ -27,8 +28,10 @@ private struct WindowContent: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
 
-    init(model: AppModel, storedAccount: Binding<String?>, storedConversation: Binding<String?>,
-         storedArea: Binding<WindowModel.Area>) {
+    init(
+        model: AppModel, storedAccount: Binding<String?>, storedConversation: Binding<String?>,
+        storedArea: Binding<WindowModel.Area>
+    ) {
         self.model = model
         _storedAccount = storedAccount
         _storedConversation = storedConversation
@@ -36,7 +39,8 @@ private struct WindowContent: View {
         let window = WindowModel()
         window.area = storedArea.wrappedValue
         window.accountID = storedAccount.wrappedValue
-        window.conversationID = storedConversation.wrappedValue
+        window.conversationID =
+            storedConversation.wrappedValue
             ?? model.workspace(storedAccount.wrappedValue)?.lastConversationID
         DemoScene.current?.prepare(window)
         _window = State(initialValue: window)
@@ -57,19 +61,24 @@ private struct WindowContent: View {
                         ThreadView(workspace: workspace, thread: thread)
                             .id(thread)
                             .navigationTitle("Thread")
-                            .navigationSubtitle(workspace.conversation(thread.channel).map(workspace.displayName(of:)) ?? "")
+                            .navigationSubtitle(
+                                workspace.conversation(thread.channel).map(workspace.displayName(of:)) ?? "")
                     } else {
-                        ContentUnavailableView("No Thread Selected", systemImage: "text.bubble",
-                                               description: Text("Pick a thread to read and reply."))
-                            .navigationTitle(window.area.title)
+                        ContentUnavailableView(
+                            "No Thread Selected", systemImage: "text.bubble",
+                            description: Text("Pick a thread to read and reply.")
+                        )
+                        .navigationTitle(window.area.title)
                     }
                 } else if let conversation = workspace.conversation(window.conversationID) {
                     ConversationView(workspace: workspace, conversation: conversation)
                         .id(conversation.id)
                 } else {
-                    ContentUnavailableView("No Conversation Selected", systemImage: "bubble.left.and.bubble.right",
-                                           description: Text("Pick a channel or direct message."))
-                        .navigationTitle(window.area.title)
+                    ContentUnavailableView(
+                        "No Conversation Selected", systemImage: "bubble.left.and.bubble.right",
+                        description: Text("Pick a channel or direct message.")
+                    )
+                    .navigationTitle(window.area.title)
                 }
             } else if !model.hasLoaded {
                 ProgressView()
@@ -90,9 +99,11 @@ private struct WindowContent: View {
                 if let workspace, let thread = window.thread {
                     ThreadView(workspace: workspace, thread: thread).id(thread)
                 } else {
-                    ContentUnavailableView("No Thread", systemImage: "bubble.left.and.text.bubble.right",
-                                           description: Text("Select a message to see its thread here."))
-                        .accessibilityIdentifier("no-thread")
+                    ContentUnavailableView(
+                        "No Thread", systemImage: "bubble.left.and.text.bubble.right",
+                        description: Text("Select a message to see its thread here.")
+                    )
+                    .accessibilityIdentifier("no-thread")
                 }
             }
             .inspectorColumnWidth(min: 300, ideal: 380, max: 560)
@@ -120,14 +131,19 @@ private struct WindowContent: View {
         .onSubmit(of: .search) { search(in: workspace) }
         .onChange(of: window.searchQuery) { _, query in if query.isEmpty { window.clearSearch() } }
         .sheet(isPresented: editingDisplayName) {
-            DisplayNameView(name: displayName, save: {
-                if let name = window.editingDisplayName { workspace?.saveDisplayName(name) }
-                window.editingDisplayName = nil
-            }, cancel: { window.editingDisplayName = nil })
+            DisplayNameView(
+                name: displayName,
+                save: {
+                    if let name = window.editingDisplayName { workspace?.saveDisplayName(name) }
+                    window.editingDisplayName = nil
+                }, cancel: { window.editingDisplayName = nil })
         }
-        .confirmationDialog("Delete this message?", isPresented: Binding(
-            get: { window.deleting != nil }, set: { if !$0 { window.deleting = nil } }
-        ), presenting: window.deleting) { target in
+        .confirmationDialog(
+            "Delete this message?",
+            isPresented: Binding(
+                get: { window.deleting != nil }, set: { if !$0 { window.deleting = nil } }
+            ), presenting: window.deleting
+        ) { target in
             Button("Delete", role: .destructive) { workspace?.delete(target.message, in: target.channel) }
         } message: { _ in
             Text("It's removed for everyone in the conversation.")
@@ -135,14 +151,16 @@ private struct WindowContent: View {
         .sheet(item: $window.signIn) { controller in
             SignInView(controller: controller, cancel: { window.signIn = nil })
         }
-        .alert(problem(workspace)?.title ?? "", isPresented: hasProblem(workspace), presenting: problem(workspace)) { _ in
+        .alert(problem(workspace)?.title ?? "", isPresented: hasProblem(workspace), presenting: problem(workspace)) {
+            _ in
             Button("OK") { clearProblems(workspace) }
         } message: { problem in
             Text(problem.reason)
         }
         .task {
-            await DemoScene.current?.finish(window, workspace: { model.workspace(window.accountID) },
-                                            openWindow: openWindow, openSettings: openSettings)
+            await DemoScene.current?.finish(
+                window, workspace: { model.workspace(window.accountID) },
+                openWindow: openWindow, openSettings: openSettings)
         }
         .onChange(of: window.accountID) { _, id in storedAccount = id }
         .onChange(of: window.area) { _, area in storedArea = area }
@@ -172,8 +190,9 @@ private struct WindowContent: View {
     }
 
     private var editingDisplayName: Binding<Bool> {
-        Binding(get: { window.editingDisplayName != nil },
-                set: { if !$0 { window.editingDisplayName = nil } })
+        Binding(
+            get: { window.editingDisplayName != nil },
+            set: { if !$0 { window.editingDisplayName = nil } })
     }
 
     private var displayName: Binding<String> {

@@ -15,8 +15,10 @@ public struct SlackReaction: Decodable, Hashable, Sendable {
 
     /// `reactions` after `user` adds or removes `name`. Repeats change nothing, so the
     /// server echoing our own reaction back is harmless.
-    public static func applying(_ name: String, by user: String, added: Bool,
-                                to reactions: [SlackReaction]) -> [SlackReaction] {
+    public static func applying(
+        _ name: String, by user: String, added: Bool,
+        to reactions: [SlackReaction]
+    ) -> [SlackReaction] {
         guard let index = reactions.firstIndex(where: { $0.name == name }) else {
             return added ? reactions + [SlackReaction(name: name, users: [user], count: 1)] : reactions
         }
@@ -26,8 +28,9 @@ public struct SlackReaction: Decodable, Hashable, Sendable {
         if added {
             result[index] = SlackReaction(name: name, users: reaction.users + [user], count: reaction.count + 1)
         } else if reaction.count > 1 {
-            result[index] = SlackReaction(name: name, users: reaction.users.filter { $0 != user },
-                                          count: reaction.count - 1)
+            result[index] = SlackReaction(
+                name: name, users: reaction.users.filter { $0 != user },
+                count: reaction.count - 1)
         } else {
             result.remove(at: index)
         }
@@ -88,7 +91,9 @@ public struct SlackFile: Decodable, Hashable, Identifiable, Sendable {
         url = try c.decodeIfPresent(String.self, forKey: .urlPrivate).flatMap(URL.init(string:))
         permalink = try c.decodeIfPresent(String.self, forKey: .permalink).flatMap(URL.init(string:))
         let mimetype = try c.decodeIfPresent(String.self, forKey: .mimetype) ?? ""
-        preview = mimetype == "image/gif" ? try Self.animatedPreview(in: c) ?? Self.preview(in: c)
+        preview =
+            mimetype == "image/gif"
+            ? try Self.animatedPreview(in: c) ?? Self.preview(in: c)
             : mimetype.hasPrefix("image/") ? try Self.preview(in: c) : nil
         video = mimetype.hasPrefix("video/") ? try Self.video(in: c) : nil
     }
@@ -98,29 +103,38 @@ public struct SlackFile: Decodable, Hashable, Identifiable, Sendable {
         let urls = try [Keys.thumb480Gif, .thumb360Gif, .urlPrivate].lazy
             .compactMap { try c.decodeIfPresent(String.self, forKey: $0).flatMap(URL.init(string:)) }
         guard let url = urls.first,
-              let width = try c.decodeIfPresent(Int.self, forKey: .originalW),
-              let height = try c.decodeIfPresent(Int.self, forKey: .originalH) else { return nil }
+            let width = try c.decodeIfPresent(Int.self, forKey: .originalW),
+            let height = try c.decodeIfPresent(Int.self, forKey: .originalH)
+        else { return nil }
         return Preview(url: url, width: width, height: height, isAnimated: true)
     }
 
     private static func video(in c: KeyedDecodingContainer<Keys>) throws -> Video? {
-        guard let url = try (c.decodeIfPresent(String.self, forKey: .mp4) ?? c.decodeIfPresent(String.self, forKey: .urlPrivate))
-            .flatMap(URL.init(string:)) else { return nil }
-        let poster: Preview? = if let thumb = try c.decodeIfPresent(String.self, forKey: .thumbVideo).flatMap(URL.init(string:)),
-                                  let width = try c.decodeIfPresent(Int.self, forKey: .thumbVideoW),
-                                  let height = try c.decodeIfPresent(Int.self, forKey: .thumbVideoH) {
-            Preview(url: thumb, width: width, height: height)
-        } else { nil }
+        guard
+            let url = try
+                (c.decodeIfPresent(String.self, forKey: .mp4) ?? c.decodeIfPresent(String.self, forKey: .urlPrivate))
+                .flatMap(URL.init(string:))
+        else { return nil }
+        let poster: Preview? =
+            if let thumb = try c.decodeIfPresent(String.self, forKey: .thumbVideo).flatMap(URL.init(string:)),
+                let width = try c.decodeIfPresent(Int.self, forKey: .thumbVideoW),
+                let height = try c.decodeIfPresent(Int.self, forKey: .thumbVideoH)
+            {
+                Preview(url: thumb, width: width, height: height)
+            } else { nil }
         return Video(url: url, poster: poster)
     }
 
     /// The 720px thumbnail, else the 360px one.
     private static func preview(in c: KeyedDecodingContainer<Keys>) throws -> Preview? {
-        for (urlKey, widthKey, heightKey) in [(Keys.thumb720, Keys.thumb720W, Keys.thumb720H),
-                                              (.thumb360, .thumb360W, .thumb360H)] {
+        for (urlKey, widthKey, heightKey) in [
+            (Keys.thumb720, Keys.thumb720W, Keys.thumb720H),
+            (.thumb360, .thumb360W, .thumb360H),
+        ] {
             if let url = try c.decodeIfPresent(String.self, forKey: urlKey).flatMap(URL.init(string:)),
-               let width = try c.decodeIfPresent(Int.self, forKey: widthKey),
-               let height = try c.decodeIfPresent(Int.self, forKey: heightKey) {
+                let width = try c.decodeIfPresent(Int.self, forKey: widthKey),
+                let height = try c.decodeIfPresent(Int.self, forKey: heightKey)
+            {
                 return Preview(url: url, width: width, height: height)
             }
         }
@@ -131,12 +145,20 @@ public struct SlackFile: Decodable, Hashable, Identifiable, Sendable {
         case id, name, title, mimetype, permalink
         case prettyType = "pretty_type"
         case urlPrivate = "url_private"
-        case thumb720 = "thumb_720", thumb720W = "thumb_720_w", thumb720H = "thumb_720_h"
-        case thumb360 = "thumb_360", thumb360W = "thumb_360_w", thumb360H = "thumb_360_h"
-        case thumb480Gif = "thumb_480_gif", thumb360Gif = "thumb_360_gif"
-        case originalW = "original_w", originalH = "original_h"
+        case thumb720 = "thumb_720"
+        case thumb720W = "thumb_720_w"
+        case thumb720H = "thumb_720_h"
+        case thumb360 = "thumb_360"
+        case thumb360W = "thumb_360_w"
+        case thumb360H = "thumb_360_h"
+        case thumb480Gif = "thumb_480_gif"
+        case thumb360Gif = "thumb_360_gif"
+        case originalW = "original_w"
+        case originalH = "original_h"
         case mp4
-        case thumbVideo = "thumb_video", thumbVideoW = "thumb_video_w", thumbVideoH = "thumb_video_h"
+        case thumbVideo = "thumb_video"
+        case thumbVideoW = "thumb_video_w"
+        case thumbVideoH = "thumb_video_h"
     }
 }
 

@@ -23,16 +23,19 @@ public enum SlackWebSession {
     /// One `SlackCredentials` per workspace in the config that has a web token.
     public static func credentials(localConfig: String, cookies: [HTTPCookie]) -> [SlackCredentials] {
         guard let data = localConfig.data(using: .utf8),
-              let config = try? JSONDecoder().decode(LocalConfig.self, from: data) else { return [] }
-        let sessionCookies = cookies
+            let config = try? JSONDecoder().decode(LocalConfig.self, from: data)
+        else { return [] }
+        let sessionCookies =
+            cookies
             .filter { $0.domain == ".slack.com" || $0.domain == "slack.com" }
             .map { SlackCookie(name: $0.name, value: $0.value, domain: $0.domain, path: $0.path) }
             .sorted { $0.name < $1.name }
         return config.teams.values
             .compactMap { team -> SlackCredentials? in
                 guard let token = team.token, token.hasPrefix("xoxc-"),
-                      let host = team.url.flatMap(URL.init(string:))?.host,
-                      SlackCredentials.isValidWorkspaceDomain(host) else { return nil }
+                    let host = team.url.flatMap(URL.init(string:))?.host,
+                    SlackCredentials.isValidWorkspaceDomain(host)
+                else { return nil }
                 return SlackCredentials(workspaceDomain: host, token: token, cookies: sessionCookies)
             }
             .sorted { $0.workspaceDomain < $1.workspaceDomain }

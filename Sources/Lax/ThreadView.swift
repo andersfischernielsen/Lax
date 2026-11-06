@@ -20,12 +20,14 @@ struct ThreadView: View {
                 ScrollViewReader { proxy in
                     List(selection: $selectedMessage) {
                         ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
-                            MessageItem(workspace: workspace, channel: thread.channel, message: message,
-                                        showsHeader: index <= 1 || MessageItem.showsHeader(messages, at: index),
-                                        showsThreadLink: false)
-                                .messageListRow(selectable: true)
-                                .tag(message.ts)
-                                .id(message.ts)
+                            MessageItem(
+                                workspace: workspace, channel: thread.channel, message: message,
+                                showsHeader: index <= 1 || MessageItem.showsHeader(messages, at: index),
+                                showsThreadLink: false
+                            )
+                            .messageListRow(selectable: true)
+                            .tag(message.ts)
+                            .id(message.ts)
                             if index == 0, messages.count > 1 {
                                 Text(messages.count == 2 ? "1 reply" : "\(messages.count - 1) replies")
                                     .font(.caption)
@@ -48,10 +50,12 @@ struct ThreadView: View {
                 }
             }
 
-            ComposerView(placeholder: "Reply…", identifier: "thread-composer", draft: draft,
-                         suggest: { workspace.suggestions(for: $0) },
-                         accept: { workspace.remember($0, inDraft: thread.draftKey) },
-                         status: { EmptyView() }) {
+            ComposerView(
+                placeholder: "Reply…", identifier: "thread-composer", draft: draft,
+                suggest: { workspace.suggestions(for: $0) },
+                accept: { workspace.remember($0, inDraft: thread.draftKey) },
+                status: { EmptyView() }
+            ) {
                 workspace.send(in: thread.channel, thread: thread.ts)
             }
         }
@@ -60,12 +64,13 @@ struct ThreadView: View {
     }
 
     private var draft: Binding<AttributedString> {
-        Binding(get: { workspace.drafts[thread.draftKey] ?? AttributedString() },
-                set: { text in
-                    if !text.characters.isEmpty, text != workspace.drafts[thread.draftKey] {
-                        workspace.userTyped(in: thread.channel)
-                    }
-                    workspace.drafts[thread.draftKey] = text
-                })
+        Binding(
+            get: { workspace.drafts[thread.draftKey] ?? AttributedString() },
+            set: { text in
+                if !text.characters.isEmpty, text != workspace.drafts[thread.draftKey] {
+                    workspace.userTyped(in: thread.channel)
+                }
+                workspace.drafts[thread.draftKey] = text
+            })
     }
 }

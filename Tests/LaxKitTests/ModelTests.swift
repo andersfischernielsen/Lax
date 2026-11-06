@@ -1,4 +1,5 @@
 import Testing
+
 @testable import LaxKit
 
 private let names = ["U1": "Jane"]
@@ -27,7 +28,8 @@ private let names = ["U1": "Jane"]
 @Test func groupDirectMessagesUseMemberNamesWhenKnown() {
     let group = SlackConversation(id: "G2", name: "mpdm-alice--bob--me-1", kind: .groupDirectMessage)
     let names = ["U1": "Alice A", "U2": "Bob B", "U3": "Me"]
-    #expect(group.displayName(userName: { names[$0] }, members: ["U2", "U1", "U3"], ownUserID: "U3") == "Alice A, Bob B")
+    #expect(
+        group.displayName(userName: { names[$0] }, members: ["U2", "U1", "U3"], ownUserID: "U3") == "Alice A, Bob B")
     // Until every name is known, the handles are a better guess than a partial list.
     #expect(group.displayName(userName: { names[$0] }, members: ["U1", "U9"], ownUserID: "U3") == "alice, bob, me")
 }

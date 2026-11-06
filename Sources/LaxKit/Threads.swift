@@ -44,7 +44,8 @@ extension [ThreadSummary] {
     /// unless the user wrote it. Replies to threads not in the list change nothing.
     public func receiving(_ reply: SlackMessage, in channel: String, ownUserID: String) -> [ThreadSummary] {
         guard let threadTS = reply.threadTS, threadTS != reply.ts,
-              let index = firstIndex(where: { $0.channelID == channel && $0.root.ts == threadTS }) else { return self }
+            let index = firstIndex(where: { $0.channelID == channel && $0.root.ts == threadTS })
+        else { return self }
         var thread = self[index]
         guard !thread.latestReplies.contains(where: { $0.ts == reply.ts }) else { return self }
         thread.latestReplies.append(reply)
@@ -74,18 +75,22 @@ public struct ThreadsPage: Sendable {
 extension SlackAPIClient {
     /// Followed threads, most recently active first, older than `before` (a reply `ts`) if given.
     public func followedThreads(before: String? = nil, limit: Int = 20, now: Date = .now) async throws -> ThreadsPage {
-        let response: ThreadsResponse = try await call("subscriptions.thread.getView", [
-            "current_ts": before ?? String(format: "%.6f", now.timeIntervalSince1970),
-            "limit": String(limit),
-        ])
+        let response: ThreadsResponse = try await call(
+            "subscriptions.thread.getView",
+            [
+                "current_ts": before ?? String(format: "%.6f", now.timeIntervalSince1970),
+                "limit": String(limit),
+            ])
         return ThreadsPage(threads: response.threads.compactMap(\.value), hasMore: response.hasMore ?? false)
     }
 
     /// Marks a thread read up to `ts`, its newest reply.
     public func markThreadRead(channel: String, threadTS: String, ts: String) async throws {
-        let _: ThreadMarkResponse = try await call("subscriptions.thread.mark", [
-            "channel": channel, "thread_ts": threadTS, "ts": ts, "read": "1",
-        ])
+        let _: ThreadMarkResponse = try await call(
+            "subscriptions.thread.mark",
+            [
+                "channel": channel, "thread_ts": threadTS, "ts": ts, "read": "1",
+            ])
     }
 }
 

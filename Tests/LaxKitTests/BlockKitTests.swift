@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import LaxKit
 
 private func message(_ json: String) throws -> SlackMessage {
@@ -9,7 +10,8 @@ private func message(_ json: String) throws -> SlackMessage {
 private let text = SlackText(userName: { ["U1": "jane"][$0] })
 
 @Test func richTextBecomesMarkup() throws {
-    let decoded = try message(#"""
+    let decoded = try message(
+        #"""
         {"ts":"1.0","text":"","blocks":[{"type":"rich_text","elements":[
           {"type":"rich_text_section","elements":[
             {"type":"text","text":"Hi "},{"type":"user","user_id":"U1"},{"type":"text","text":" see "},
@@ -28,7 +30,8 @@ private let text = SlackText(userName: { ["U1": "jane"][$0] })
 }
 
 @Test func plainTextMessagesKeepTheirText() throws {
-    let decoded = try message(#"""
+    let decoded = try message(
+        #"""
         {"ts":"1.0","text":"hello *there*","blocks":[{"type":"rich_text","elements":[
           {"type":"rich_text_section","elements":[{"type":"text","text":"hello "},{"type":"text","text":"there","style":{"bold":true}}]}]}]}
         """#)
@@ -36,7 +39,8 @@ private let text = SlackText(userName: { ["U1": "jane"][$0] })
 }
 
 @Test func layoutBlocksReplaceTheSummaryText() throws {
-    let decoded = try message(#"""
+    let decoded = try message(
+        #"""
         {"ts":"1.0","text":"New alert","blocks":[
           {"type":"header","text":{"type":"plain_text","text":"Disk <90%>"}},
           {"type":"section","text":{"type":"mrkdwn","text":"*host-1* is full"},
@@ -50,7 +54,8 @@ private let text = SlackText(userName: { ["U1": "jane"][$0] })
 }
 
 @Test func decodesAttachments() throws {
-    let decoded = try message(#"""
+    let decoded = try message(
+        #"""
         {"ts":"1.0","text":"","attachments":[
           {"color":"danger","pretext":"Heads up","title":"CPU high","title_link":"https://dd.io/1",
            "text":"95% on *api*","fields":[{"title":"Host","value":"api-1","short":true}],"footer":"Datadog",

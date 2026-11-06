@@ -29,9 +29,11 @@ private struct GeneralSettings: View {
                 Text("Mentions and direct messages").tag(AppModel.DockDot.mentions)
             }
             .pickerStyle(.radioGroup)
-            Text("Mentions and direct messages show a count; other unread messages a dot. Muted conversations count only when someone mentions you.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+            Text(
+                "Mentions and direct messages show a count; other unread messages a dot. Muted conversations count only when someone mentions you."
+            )
+            .font(.callout)
+            .foregroundStyle(.secondary)
         }
     }
 }

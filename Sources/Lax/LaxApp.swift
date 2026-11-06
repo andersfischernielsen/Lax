@@ -55,7 +55,7 @@ private struct WorkspaceCommands: Commands {
     @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
-        let _ = AppDelegate.openMainWindow = { [openWindow] in openWindow(id: "main") }
+        let _ = AppDelegate.remember { [openWindow] in openWindow(id: "main") }
         CommandGroup(after: .newItem) {
             // As in Safari and Finder: a new window, as a tab of the one in front.
             Button("New Tab") {
@@ -69,10 +69,13 @@ private struct WorkspaceCommands: Commands {
                 let current = model.workspace(window?.accountID)
                 // ⌃⌘1–9 switch workspaces; ⌘1–3 already switch views.
                 ForEach(Array(model.accounts.prefix(9).enumerated()), id: \.element.id) { index, account in
-                    Toggle(account.teamName, isOn: Binding(
-                        get: { current?.account.id == account.id },
-                        set: { if $0 { window?.accountID = account.id } }
-                    ))
+                    Toggle(
+                        account.teamName,
+                        isOn: Binding(
+                            get: { current?.account.id == account.id },
+                            set: { if $0 { window?.accountID = account.id } }
+                        )
+                    )
                     .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: [.command, .control])
                 }
                 Divider()
@@ -81,8 +84,10 @@ private struct WorkspaceCommands: Commands {
                 Button("Set Display Name…") { window?.editingDisplayName = current?.ownDisplayName }
                     .disabled(current == nil)
                 Divider()
-                Button("Sign Out of \(current?.account.teamName ?? "Workspace")…") { window?.signingOut = current?.account }
-                    .disabled(current == nil)
+                Button("Sign Out of \(current?.account.teamName ?? "Workspace")…") {
+                    window?.signingOut = current?.account
+                }
+                .disabled(current == nil)
             }
             .disabled(window == nil)
         }
@@ -147,8 +152,9 @@ private struct GoCommands: Commands {
 
     private func stepToUnread(_ direction: Int) {
         guard let window, let workspace = model.workspace(window.accountID),
-              let next = ConversationNavigation.nextUnread(from: window.conversationID, in: order,
-                                                           direction: direction, isUnread: workspace.isUnread)
+            let next = ConversationNavigation.nextUnread(
+                from: window.conversationID, in: order,
+                direction: direction, isUnread: workspace.isUnread)
         else { return NSSound.beep() }
         window.select(next)
     }
@@ -158,6 +164,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// SwiftUI's way to open the main window, handed over by the menu commands, which exist
     /// even when no window does.
     @MainActor static var openMainWindow: (() -> Void)?
+
+    @MainActor static func remember(_ open: @escaping () -> Void) {
+        openMainWindow = open
+    }
 
     /// Opens a window when Lax launches without one. A session that ended with every window
     /// closed restores as no windows, and that wins over `.defaultLaunchBehavior(.presented)`.
@@ -169,7 +179,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Once SwiftUI has restored or opened its windows.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             MainActor.assumeIsolated {
-                guard !NSApplication.shared.windows.contains(where: { $0.isVisible && $0.canBecomeMain }) else { return }
+                guard !NSApplication.shared.windows.contains(where: { $0.isVisible && $0.canBecomeMain }) else {
+                    return
+                }
                 Self.openMainWindow?()
             }
         }
@@ -188,12 +200,16 @@ private struct MessageCommands: Commands {
             let message = selected?.message
             let isOwn = message?.userID != nil && message?.userID == selected?.workspace.account.userID
             Button("Reply in Thread") {
-                if let selected, let message { window?.openThread(message.threadTS ?? message.ts, in: selected.channel) }
+                if let selected, let message {
+                    window?.openThread(message.threadTS ?? message.ts, in: selected.channel)
+                }
             }
             .keyboardShortcut(Shortcuts.replyInThread)
             .disabled(message == nil)
             Button("Add Reaction…") {
-                if let selected, let message { window?.reactingTo = ReactionTarget(channel: selected.channel, message: message) }
+                if let selected, let message {
+                    window?.reactingTo = ReactionTarget(channel: selected.channel, message: message)
+                }
             }
             .keyboardShortcut(Shortcuts.addReaction)
             .disabled(message == nil)
@@ -215,7 +231,9 @@ private struct MessageCommands: Commands {
             .keyboardShortcut(Shortcuts.edit)
             .disabled(!isOwn)
             Button("Delete…") {
-                if let selected, let message { window?.deleting = ReactionTarget(channel: selected.channel, message: message) }
+                if let selected, let message {
+                    window?.deleting = ReactionTarget(channel: selected.channel, message: message)
+                }
             }
             .keyboardShortcut(Shortcuts.delete)
             .disabled(!isOwn)
@@ -246,7 +264,8 @@ private struct MessageCommands: Commands {
     /// The selected message in the open conversation, with where it is.
     private var selection: (workspace: WorkspaceModel, channel: String, message: SlackMessage?)? {
         guard let window, let channel = window.conversationID,
-              let workspace = model.workspace(window.accountID) else { return nil }
+            let workspace = model.workspace(window.accountID)
+        else { return nil }
         let message = window.selectedMessage.flatMap { ts in
             workspace.timelines[channel]?.messages.first { $0.ts == ts }
         }

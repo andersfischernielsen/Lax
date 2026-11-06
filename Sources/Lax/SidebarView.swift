@@ -24,8 +24,10 @@ struct SidebarView: View {
             let areas = WindowModel.Area.allCases
             SegmentedSwitcher(
                 segments: areas.map { .init(title: $0.title, systemImage: $0.systemImage) },
-                selection: Binding(get: { areas.firstIndex(of: window.area) ?? 0 },
-                                   set: { if areas.indices.contains($0) { window.area = areas[$0] } }))
+                selection: Binding(
+                    get: { areas.firstIndex(of: window.area) ?? 0 },
+                    set: { if areas.indices.contains($0) { window.area = areas[$0] } })
+            )
             // A red dot on each segment with something unread. Stretched, the segments share
             // the width equally, so equal cells line up with them.
             .overlay {
@@ -41,8 +43,10 @@ struct SidebarView: View {
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
             }
-            .accessibilityValue(WindowModel.Area.allCases.filter { workspace?.hasUnreads(in: $0) ?? false }
-                .map { "Unread in \($0.title)" }.joined(separator: ", "))
+            .accessibilityValue(
+                WindowModel.Area.allCases.filter { workspace?.hasUnreads(in: $0) ?? false }
+                    .map { "Unread in \($0.title)" }.joined(separator: ", ")
+            )
             .padding(.horizontal, 10)
             .padding(.bottom, 6)
         }
@@ -52,9 +56,11 @@ struct SidebarView: View {
         .safeAreaInset(edge: .bottom) {
             if let workspace { ConnectionStatusView(status: workspace.status) }
         }
-        .confirmationDialog("Sign out of \(window.signingOut?.teamName ?? "the workspace")?",
-                            isPresented: Binding(get: { window.signingOut != nil }, set: { if !$0 { window.signingOut = nil } }),
-                            presenting: window.signingOut) { account in
+        .confirmationDialog(
+            "Sign out of \(window.signingOut?.teamName ?? "the workspace")?",
+            isPresented: Binding(get: { window.signingOut != nil }, set: { if !$0 { window.signingOut = nil } }),
+            presenting: window.signingOut
+        ) { account in
             Button("Sign Out", role: .destructive) { model.signOut(of: account) }
         } message: { _ in
             Text("Lax forgets this workspace's session. You can sign in again at any time.")
@@ -64,10 +70,12 @@ struct SidebarView: View {
     private var workspaceMenu: some View {
         Menu {
             ForEach(model.accounts) { account in
-                Toggle(account.teamName, isOn: Binding(
-                    get: { workspace?.account.id == account.id },
-                    set: { if $0 { window.accountID = account.id } }
-                ))
+                Toggle(
+                    account.teamName,
+                    isOn: Binding(
+                        get: { workspace?.account.id == account.id },
+                        set: { if $0 { window.accountID = account.id } }
+                    ))
             }
             Divider()
             Button("Add Workspace…") { window.beginSignIn(with: model) }
@@ -136,8 +144,9 @@ private struct FollowedThreadList: View {
             if workspace.followedThreads == nil {
                 ProgressView()
             } else if threads.isEmpty {
-                ContentUnavailableView("No Threads", systemImage: "text.bubble",
-                                       description: Text("Threads you reply to or follow show up here."))
+                ContentUnavailableView(
+                    "No Threads", systemImage: "text.bubble",
+                    description: Text("Threads you reply to or follow show up here."))
             }
         }
         // Once; after that the real-time connection keeps the list current.
@@ -146,14 +155,16 @@ private struct FollowedThreadList: View {
 
     /// Opening a thread marks it read.
     private func selection(_ threads: [ThreadSummary]) -> Binding<ThreadRef?> {
-        Binding(get: { window.followedThread },
-                set: { ref in
-                    window.followedThread = ref
-                    if let thread = threads.first(where: { $0.channelID == ref?.channel && $0.root.ts == ref?.ts }),
-                       thread.unreadReplies > 0 {
-                        workspace.markRead(thread)
-                    }
-                })
+        Binding(
+            get: { window.followedThread },
+            set: { ref in
+                window.followedThread = ref
+                if let thread = threads.first(where: { $0.channelID == ref?.channel && $0.root.ts == ref?.ts }),
+                    thread.unreadReplies > 0
+                {
+                    workspace.markRead(thread)
+                }
+            })
     }
 }
 
@@ -208,8 +219,11 @@ private struct ConversationRow: View {
         } icon: {
             Image(systemName: conversation.kind.systemImage)
         }
-        .foregroundStyle(isHighlighted ? AnyShapeStyle(.primary)
-                         : isMuted ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
+        .foregroundStyle(
+            isHighlighted
+                ? AnyShapeStyle(.primary)
+                : isMuted ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary)
+        )
         .accessibilityIdentifier("conversation-\(id)")
         .badge(counts.mentions)
         // Red-filled, like an app icon badge.

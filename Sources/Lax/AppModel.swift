@@ -122,7 +122,8 @@ final class AppModel {
             workspaces[id] = nil
         }
         for account in accounts where workspaces[account.id] == nil {
-            let workspace = DemoSlack.isEnabled
+            let workspace =
+                DemoSlack.isEnabled
                 ? WorkspaceModel(account: account, session: DemoSlack.session, isLive: false)
                 : WorkspaceModel(account: account)
             workspaces[account.id] = workspace

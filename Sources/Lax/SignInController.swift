@@ -62,8 +62,10 @@ final class SignInController: NSObject, Identifiable, WKNavigationDelegate, WKUI
         return .allow
     }
 
-    func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
-                 for action: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+    func webView(
+        _ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
+        for action: WKNavigationAction, windowFeatures: WKWindowFeatures
+    ) -> WKWebView? {
         // Slack opens some steps, such as 2FA, in a new tab. Web views drop those
         // unless handled, so load them here instead.
         Log.signIn.info("new-window request: \(Log.redacted(action.request.url), privacy: .public)")
@@ -79,15 +81,19 @@ final class SignInController: NSObject, Identifiable, WKNavigationDelegate, WKUI
         Log.signIn.error("load failed before start: \(Log.describe(error), privacy: .public)")
     }
 
-    func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String,
-                 initiatedByFrame frame: WKFrameInfo) async {
+    func webView(
+        _ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String,
+        initiatedByFrame frame: WKFrameInfo
+    ) async {
         let alert = NSAlert()
         alert.messageText = message
         alert.runModal()
     }
 
-    func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String,
-                 initiatedByFrame frame: WKFrameInfo) async -> Bool {
+    func webView(
+        _ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String,
+        initiatedByFrame frame: WKFrameInfo
+    ) async -> Bool {
         let alert = NSAlert()
         alert.messageText = message
         alert.addButton(withTitle: "OK")
@@ -121,13 +127,15 @@ final class SignInController: NSObject, Identifiable, WKNavigationDelegate, WKUI
         do {
             config = try await webView.evaluateJavaScript(SlackWebSession.localConfigScript) as? String
         } catch {
-            Log.signIn.error("attempt \(attempt): reading localStorage failed: \(Log.describe(error), privacy: .public)")
+            Log.signIn.error(
+                "attempt \(attempt): reading localStorage failed: \(Log.describe(error), privacy: .public)")
             return []
         }
         let cookies = await webView.configuration.websiteDataStore.httpCookieStore.allCookies()
         let found = SlackWebSession.credentials(localConfig: config ?? "", cookies: cookies)
         let cookieNames = cookies.map { "\($0.name)@\($0.domain)" }.sorted().joined(separator: " ")
-        Log.signIn.info("""
+        Log.signIn.info(
+            """
             attempt \(attempt): config \(config == nil ? "missing" : "\(config!.count) chars", privacy: .public), \
             \(found.count) workspace(s): \(found.map(\.workspaceDomain).joined(separator: ", "), privacy: .public); \
             cookies: \(cookieNames, privacy: .public)

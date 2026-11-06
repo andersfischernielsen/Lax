@@ -66,7 +66,8 @@ public struct RealTimeConnection: Sendable {
                 continuation.yield(.status(.signedOut))
                 break
             } catch {
-                Log.realTime.error("\(host, privacy: .public): connection lost: \(Log.describe(error), privacy: .public)")
+                Log.realTime.error(
+                    "\(host, privacy: .public): connection lost: \(Log.describe(error), privacy: .public)")
             }
             guard !Task.isCancelled else { break }
             let delay = Self.backoff(attempt: attempt)
@@ -115,8 +116,10 @@ public struct RealTimeConnection: Sendable {
     }
 
     /// Returns when Slack says goodbye; throws when the socket fails.
-    private func serve(_ socket: URLSessionWebSocketTask,
-                       _ continuation: AsyncStream<RealTimeUpdate>.Continuation) async throws {
+    private func serve(
+        _ socket: URLSessionWebSocketTask,
+        _ continuation: AsyncStream<RealTimeUpdate>.Continuation
+    ) async throws {
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
                 while true {

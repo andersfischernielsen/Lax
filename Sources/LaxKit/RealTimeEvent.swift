@@ -42,14 +42,17 @@ public enum RealTimeEvent: Equatable, Sendable {
             return .prefChange(name: name, value: value.text)
         case "reaction_added", "reaction_removed":
             guard let item = envelope.item, item.type == "message", let user = envelope.user,
-                  let name = envelope.reaction else { return nil }
-            return .reaction(channel: item.channel, ts: item.ts, name: name, userID: user,
-                             added: type == "reaction_added")
+                let name = envelope.reaction
+            else { return nil }
+            return .reaction(
+                channel: item.channel, ts: item.ts, name: name, userID: user,
+                added: type == "reaction_added")
         case "channel_marked", "group_marked", "im_marked", "mpim_marked":
             guard let channel = envelope.channel else { return nil }
-            return .marked(channel: channel,
-                           unreadCount: envelope.unreadCountDisplay ?? envelope.unreadCount ?? 0,
-                           mentionCount: envelope.mentionCountDisplay ?? envelope.mentionCount ?? 0)
+            return .marked(
+                channel: channel,
+                unreadCount: envelope.unreadCountDisplay ?? envelope.unreadCount ?? 0,
+                mentionCount: envelope.mentionCountDisplay ?? envelope.mentionCount ?? 0)
         default:
             return .other(type: type)
         }
@@ -92,10 +95,15 @@ public enum RealTimeEvent: Equatable, Sendable {
 
             init(from decoder: Decoder) throws {
                 let c = try decoder.singleValueContainer()
-                if let string = try? c.decode(String.self) { text = string }
-                else if let bool = try? c.decode(Bool.self) { text = String(bool) }
-                else if let number = try? c.decode(Double.self) { text = String(number) }
-                else { text = "" }
+                if let string = try? c.decode(String.self) {
+                    text = string
+                } else if let bool = try? c.decode(Bool.self) {
+                    text = String(bool)
+                } else if let number = try? c.decode(Double.self) {
+                    text = String(number)
+                } else {
+                    text = ""
+                }
             }
         }
 

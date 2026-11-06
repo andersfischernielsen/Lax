@@ -1,9 +1,11 @@
 import Foundation
 import Testing
+
 @testable import LaxKit
 
 @Test func slashCommandsSplitIntoCommandAndText() {
-    #expect(SlashCommand("/remind me to stretch in 1 hour") == SlashCommand.parsed("/remind", "me to stretch in 1 hour"))
+    #expect(
+        SlashCommand("/remind me to stretch in 1 hour") == SlashCommand.parsed("/remind", "me to stretch in 1 hour"))
     #expect(SlashCommand("/giphy") == SlashCommand.parsed("/giphy", ""))
     #expect(SlashCommand(#"/poll "Lunch?" "Pizza""#)?.text == #""Lunch?" "Pizza""#)
     #expect(SlashCommand("/note first line\nsecond line")?.text == "first line\nsecond line")
@@ -17,14 +19,17 @@ import Testing
 }
 
 @Test func buttonsComeFromActionsBlocksAndSectionAccessories() throws {
-    let blocks = try JSONDecoder().decode([JSONValue].self, from: Data(#"""
-    [{"type":"section","block_id":"b1","text":{"type":"mrkdwn","text":"Deploy?"},
-      "accessory":{"type":"button","action_id":"details","text":{"type":"plain_text","text":"Details"},"url":"https://example.com"}},
-     {"type":"actions","block_id":"b2","elements":[
-       {"type":"button","action_id":"approve","text":{"type":"plain_text","text":"Approve"},"value":"yes","style":"primary"},
-       {"type":"static_select","action_id":"pick"},
-       {"type":"button","action_id":"deny","text":{"type":"plain_text","text":"Deny"},"style":"danger"}]}]
-    """#.utf8))
+    let blocks = try JSONDecoder().decode(
+        [JSONValue].self,
+        from: Data(
+            #"""
+            [{"type":"section","block_id":"b1","text":{"type":"mrkdwn","text":"Deploy?"},
+              "accessory":{"type":"button","action_id":"details","text":{"type":"plain_text","text":"Details"},"url":"https://example.com"}},
+             {"type":"actions","block_id":"b2","elements":[
+               {"type":"button","action_id":"approve","text":{"type":"plain_text","text":"Approve"},"value":"yes","style":"primary"},
+               {"type":"static_select","action_id":"pick"},
+               {"type":"button","action_id":"deny","text":{"type":"plain_text","text":"Deny"},"style":"danger"}]}]
+            """#.utf8))
     let buttons = BlockKit.buttons(in: blocks)
     #expect(buttons.map(\.actionID) == ["details", "approve", "deny"])
     #expect(buttons[0].url?.absoluteString == "https://example.com")
@@ -48,10 +53,14 @@ extension EndpointTests {
     @Test func buttonPressesGoToBlocksActions() async throws {
         StubURLProtocol.reset(["blocks.actions": [#"{"ok":true}"#]])
         let message = SlackMessage(ts: "5.0", userID: "U9", text: "", botID: "B1")
-        let button = BlockButton(blockID: "b2", actionID: "approve", text: "Approve", value: "yes", url: nil, style: .primary)
+        let button = BlockButton(
+            blockID: "b2", actionID: "approve", text: "Approve", value: "yes", url: nil, style: .primary)
         try await client.press(button, on: message, in: "C1")
         let fields = StubURLProtocol.requests[0].formFields
-        #expect(fields["actions"] == #"[{"action_id":"approve","block_id":"b2","text":{"text":"Approve","type":"plain_text"},"type":"button","value":"yes"}]"#)
+        #expect(
+            fields["actions"]
+                == #"[{"action_id":"approve","block_id":"b2","text":{"text":"Approve","type":"plain_text"},"type":"button","value":"yes"}]"#
+        )
         #expect(fields["container"] == #"{"channel_id":"C1","is_ephemeral":false,"message_ts":"5.0","type":"message"}"#)
         #expect(fields["service_id"] == "B1")
         #expect(fields["bot_user_id"] == "U9")

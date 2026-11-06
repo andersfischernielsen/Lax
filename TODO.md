@@ -49,7 +49,8 @@
 - [x] Performance pass: rows redraw only when their own data changes (split the
       workspace model), messages are formatted once and cached, avatars and emoji
       images are cached, and images reserve their space so rows don't change height
-- [ ] Apple guideline pass: selectable message text that keeps the message menu,
+- [x] Apple guideline pass: ⌘C copies the selected message (as in Messages; selectable
+      text would hide the message menu),
       a Settings window, accessibility labels, specific error messages instead of one
       generic alert, sign-out confirmation, keyboard navigation in the menus, and only
       system colors and levels (no hand-tuned opacities)

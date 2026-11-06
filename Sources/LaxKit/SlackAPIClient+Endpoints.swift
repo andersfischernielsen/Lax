@@ -40,6 +40,15 @@ extension SlackAPIClient {
         let _: Empty = try await call("conversations.mark", ["channel": channel, "ts": ts])
     }
 
+    /// Unread state for every conversation, as Slack's web client fetches it on start.
+    public func unreadCounts() async throws -> UnreadState {
+        let response: CountsResponse = try await call("client.counts", ["thread_counts_by_channel": "true"])
+        let all = (response.channels ?? []) + (response.mpims ?? []) + (response.ims ?? [])
+        return UnreadState(Dictionary(all.map {
+            ($0.id, UnreadState.Counts(hasUnreads: $0.hasUnreads ?? false, mentions: $0.mentionCount ?? 0))
+        }, uniquingKeysWith: { first, _ in first }))
+    }
+
     /// User group ID → handle (without the @), for `<!subteam^S…>` mentions.
     public func userGroupHandles() async throws -> [String: String] {
         let response: UserGroupsResponse = try await call("usergroups.list", ["include_disabled": "true"])
@@ -107,6 +116,24 @@ private struct ConversationInfoResponse: Decodable {
     }
 
     let channel: Channel
+}
+
+private struct CountsResponse: Decodable {
+    struct Conversation: Decodable {
+        let id: String
+        let hasUnreads: Bool?
+        let mentionCount: Int?
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case hasUnreads = "has_unreads"
+            case mentionCount = "mention_count"
+        }
+    }
+
+    let channels: [Conversation]?
+    let mpims: [Conversation]?
+    let ims: [Conversation]?
 }
 
 private struct UserGroupsResponse: Decodable {

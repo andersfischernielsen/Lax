@@ -8,6 +8,8 @@ public enum RealTimeEvent: Equatable, Sendable {
     case messageChanged(channel: String, SlackMessage)
     case messageDeleted(channel: String, ts: String)
     case userTyping(channel: String, userID: String)
+    /// The read position moved, here or in another client.
+    case marked(channel: String, unreadCount: Int, mentionCount: Int)
     case other(type: String)
 
     /// Subtypes that are ordinary messages to show in the timeline.
@@ -32,6 +34,11 @@ public enum RealTimeEvent: Equatable, Sendable {
             return .userTyping(channel: channel, userID: user)
         case "message":
             return parseMessage(envelope, data: data, decoder: decoder)
+        case "channel_marked", "group_marked", "im_marked", "mpim_marked":
+            guard let channel = envelope.channel else { return nil }
+            return .marked(channel: channel,
+                           unreadCount: envelope.unreadCountDisplay ?? envelope.unreadCount ?? 0,
+                           mentionCount: envelope.mentionCountDisplay ?? envelope.mentionCount ?? 0)
         default:
             return .other(type: type)
         }
@@ -40,7 +47,8 @@ public enum RealTimeEvent: Equatable, Sendable {
     private static func parseMessage(_ envelope: Envelope, data: Data, decoder: JSONDecoder) -> RealTimeEvent? {
         guard let channel = envelope.channel else { return nil }
         switch envelope.subtype {
-        case "message_changed":
+        case "message_changed", "message_replied":
+            // A reply arrives with its updated parent (reply count, latest reply).
             return envelope.message.map { .messageChanged(channel: channel, $0) }
         case "message_deleted":
             return envelope.deletedTS.map { .messageDeleted(channel: channel, ts: $0) }
@@ -58,10 +66,18 @@ public enum RealTimeEvent: Equatable, Sendable {
         let user: String?
         let message: SlackMessage?
         let deletedTS: String?
+        let unreadCount: Int?
+        let unreadCountDisplay: Int?
+        let mentionCount: Int?
+        let mentionCountDisplay: Int?
 
         enum CodingKeys: String, CodingKey {
             case type, subtype, channel, user, message
             case deletedTS = "deleted_ts"
+            case unreadCount = "unread_count"
+            case unreadCountDisplay = "unread_count_display"
+            case mentionCount = "mention_count"
+            case mentionCountDisplay = "mention_count_display"
         }
     }
 }

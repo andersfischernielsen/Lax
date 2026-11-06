@@ -18,7 +18,7 @@ public struct Timeline: Equatable, Sendable {
     /// Adds or replaces a message, keeping order. Returns false if it doesn't belong here.
     @discardableResult
     public mutating func upsert(_ message: SlackMessage) -> Bool {
-        guard Self.belongsInChannel(message) else { return false }
+        guard message.isChannelLevel else { return false }
         if let index = messages.firstIndex(where: { $0.ts == message.ts }) {
             messages[index] = message
         } else {
@@ -46,11 +46,6 @@ public struct Timeline: Equatable, Sendable {
     /// Where the "New" line goes: the first message after `lastRead` not sent by `ownUserID`.
     public func firstUnreadTS(lastRead: String, ownUserID: String) -> String? {
         messages.first { Self.isOrdered(lastRead, before: $0.ts) && $0.userID != ownUserID }?.ts
-    }
-
-    static func belongsInChannel(_ message: SlackMessage) -> Bool {
-        guard let thread = message.threadTS, thread != message.ts else { return true }
-        return message.subtype == "thread_broadcast"
     }
 
     /// Timestamps are decimal strings, so compare them as numbers.

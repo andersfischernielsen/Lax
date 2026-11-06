@@ -36,8 +36,24 @@ private func parse(_ json: String) -> RealTimeEvent? {
 }
 
 @Test func reportsUnhandledMessageSubtypes() {
-    #expect(parse(#"{"type":"message","subtype":"message_replied","channel":"C1","ts":"1.0"}"#)
-            == .other(type: "message/message_replied"))
+    #expect(parse(#"{"type":"message","subtype":"channel_archive","channel":"C1","ts":"1.0"}"#)
+            == .other(type: "message/channel_archive"))
+}
+
+@Test func threadRepliesUpdateTheParent() {
+    let event = parse(#"""
+        {"type":"message","subtype":"message_replied","channel":"C1","hidden":true,
+         "message":{"type":"message","user":"U1","text":"root","ts":"1.0","thread_ts":"1.0","reply_count":3}}
+        """#)
+    guard case .messageChanged(_, let parent) = event else { Issue.record("not an update"); return }
+    #expect(parent.replyCount == 3)
+}
+
+@Test func parsesReadPositionChanges() {
+    #expect(parse(#"{"type":"channel_marked","channel":"C1","ts":"1.0","unread_count":4,"unread_count_display":2,"mention_count":1}"#)
+            == .marked(channel: "C1", unreadCount: 2, mentionCount: 1))
+    #expect(parse(#"{"type":"im_marked","channel":"D1","ts":"1.0"}"#)
+            == .marked(channel: "D1", unreadCount: 0, mentionCount: 0))
 }
 
 @Test func parsesTyping() {

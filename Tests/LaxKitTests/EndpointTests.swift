@@ -96,6 +96,20 @@ struct EndpointTests {
         #expect(try await client.userGroupHandles() == ["S1": "platform", "S2": "oncall"])
     }
 
+    @Test func unreadCountsCoverAllConversationKinds() async throws {
+        StubURLProtocol.reset(["client.counts": [#"""
+            {"ok":true,"threads":{},
+             "channels":[{"id":"C1","has_unreads":true,"mention_count":2},{"id":"C2","has_unreads":false}],
+             "mpims":[{"id":"G1","has_unreads":true,"mention_count":1}],
+             "ims":[{"id":"D1","has_unreads":true,"mention_count":3}]}
+            """#]])
+        let unread = try await client.unreadCounts()
+        #expect(unread["C1"] == .init(hasUnreads: true, mentions: 2))
+        #expect(unread["C2"] == .init())
+        #expect(unread["G1"].mentions == 1)
+        #expect(unread["D1"].mentions == 3)
+    }
+
     @Test func realTimeURLComesFromRTMConnect() async throws {
         StubURLProtocol.reset(["rtm.connect": [#"{"ok":true,"url":"wss://wss-primary.slack.com/websocket/abc"}"#]])
         #expect(try await client.realTimeURL().absoluteString == "wss://wss-primary.slack.com/websocket/abc")

@@ -104,6 +104,7 @@ public struct RealTimeConnection: Sendable {
         case .messageChanged: "message_changed"
         case .messageDeleted: "message_deleted"
         case .userTyping: "user_typing"
+        case .marked: "marked"
         case .other(let type): type
         }
     }

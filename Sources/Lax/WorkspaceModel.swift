@@ -45,7 +45,8 @@ final class WorkspaceModel: Identifiable {
     @ObservationIgnored private var typingThrottle = TypingThrottle()
     @ObservationIgnored private var tasks: [Task<Void, Never>] = []
     @ObservationIgnored private var requestedUsers: Set<String> = []
-    @ObservationIgnored private var readPositionKnown: Set<String> = []
+    /// Conversations whose read position has been fetched since they were opened.
+    private(set) var readPositionKnown: Set<String> = []
     @ObservationIgnored private var markedReadTS: [String: String] = [:]
     /// The newest message that has been on screen, per conversation.
     @ObservationIgnored private var seenTS: [String: String] = [:]
@@ -137,6 +138,8 @@ final class WorkspaceModel: Identifiable {
         visible[channel, default: 1] -= 1
         guard visible[channel] == 0 else { return }
         visible[channel] = nil
+        // Fetched afresh next time, so it opens at the then-current "New" line.
+        readPositionKnown.remove(channel)
         // Off screen, keep one page: showing it again then lays out 50 rows, not every
         // message ever scrolled back to.
         timelines.update(channel) { $0 = $0.keepingNewest(50) }
@@ -160,6 +163,8 @@ final class WorkspaceModel: Identifiable {
             guard !Task.isCancelled, let position = seenTS[channel],
                   SlackTimestamp.isBefore(markedReadTS[channel] ?? "0", position) else { return }
             markedReadTS[channel] = position
+            // The "New" line moves down to what's still unseen, and goes once that's nothing.
+            unreadMarkers[channel] = position
             try? await client.markRead(channel: channel, ts: position)
         }
     }
@@ -216,6 +221,7 @@ final class WorkspaceModel: Identifiable {
     func markAllRead(in channel: String) {
         guard let newest = timelines[channel]?.newestTS ?? latestActivity[channel] else { return }
         markedReadTS[channel] = newest
+        unreadMarkers[channel] = newest
         unread.read(channel)
         Task {
             do {

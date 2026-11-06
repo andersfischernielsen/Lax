@@ -33,13 +33,15 @@ struct ConversationView: View {
                     ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
                         let author = message.userID.flatMap { workspace.users[$0] }
                         let isFirstUnread = message.ts == firstUnread
+                        let isNewDay = DayLabel.startsNewDay(message.date, after: index > 0 ? messages[index - 1].date : nil)
+                        if isNewDay { DayDivider(date: message.date) }
                         if isFirstUnread { NewMessagesDivider() }
                         MessageRow(
                             message: message,
                             author: workspace.authorName(of: message),
                             avatarURL: author?.avatarURL,
                             text: MessageStyle.styled(formatter.attributed(message.text)),
-                            showsHeader: isFirstUnread || showsHeader(messages, at: index),
+                            showsHeader: isNewDay || isFirstUnread || showsHeader(messages, at: index),
                             isSystem: message.subtype.map(Self.systemSubtypes.contains) ?? false
                         )
                     }
@@ -63,6 +65,20 @@ struct ConversationView: View {
         return previous.userID != message.userID
             || previous.username != message.username
             || message.date.timeIntervalSince(previous.date) > Self.groupingWindow
+    }
+}
+
+private struct DayDivider: View {
+    let date: Date
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Rectangle().fill(.separator).frame(height: 1)
+            Text(DayLabel.text(for: date)).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            Rectangle().fill(.separator).frame(height: 1)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 14)
     }
 }
 

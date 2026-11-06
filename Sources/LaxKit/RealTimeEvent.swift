@@ -9,6 +9,8 @@ public enum RealTimeEvent: Equatable, Sendable {
     case messageDeleted(channel: String, ts: String)
     case userTyping(channel: String, userID: String)
     case reaction(channel: String, ts: String, name: String, userID: String, added: Bool)
+    /// A user pref changed. `name` is e.g. `muted_channels` or `all_notifications_prefs`.
+    case prefChange(name: String, value: String)
     /// The read position moved, here or in another client.
     case marked(channel: String, unreadCount: Int, mentionCount: Int)
     case other(type: String)
@@ -35,6 +37,9 @@ public enum RealTimeEvent: Equatable, Sendable {
             return .userTyping(channel: channel, userID: user)
         case "message":
             return parseMessage(envelope, data: data, decoder: decoder)
+        case "pref_change":
+            guard let name = envelope.name, let value = envelope.value else { return nil }
+            return .prefChange(name: name, value: value.text)
         case "reaction_added", "reaction_removed":
             guard let item = envelope.item, item.type == "message", let user = envelope.user,
                   let name = envelope.reaction else { return nil }
@@ -78,6 +83,21 @@ public enum RealTimeEvent: Equatable, Sendable {
         let mentionCountDisplay: Int?
         let reaction: String?
         let item: Item?
+        let name: String?
+        let value: PrefValue?
+
+        /// Pref values arrive as strings, numbers or booleans; keep their text.
+        struct PrefValue: Decodable {
+            let text: String
+
+            init(from decoder: Decoder) throws {
+                let c = try decoder.singleValueContainer()
+                if let string = try? c.decode(String.self) { text = string }
+                else if let bool = try? c.decode(Bool.self) { text = String(bool) }
+                else if let number = try? c.decode(Double.self) { text = String(number) }
+                else { text = "" }
+            }
+        }
 
         struct Item: Decodable {
             let type: String
@@ -86,7 +106,7 @@ public enum RealTimeEvent: Equatable, Sendable {
         }
 
         enum CodingKeys: String, CodingKey {
-            case type, subtype, channel, user, message, reaction, item
+            case type, subtype, channel, user, message, reaction, item, name, value
             case deletedTS = "deleted_ts"
             case unreadCount = "unread_count"
             case unreadCountDisplay = "unread_count_display"

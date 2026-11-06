@@ -105,6 +105,7 @@ public struct RealTimeConnection: Sendable {
         case .messageDeleted: "message_deleted"
         case .userTyping: "user_typing"
         case .marked: "marked"
+        case .prefChange(let name, _): "pref_change/\(name)"
         case .reaction(_, _, _, _, let added): added ? "reaction_added" : "reaction_removed"
         case .other(let type): type
         }

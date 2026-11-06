@@ -121,6 +121,19 @@ struct EndpointTests {
         #expect(StubURLProtocol.requests[0].formFields["ts"] == "1.0")
     }
 
+    @Test func mutedChannelsFromPrefs() async throws {
+        StubURLProtocol.reset([
+            "users.prefs.get": [#"{"ok":true,"prefs":{"muted_channels":"C1","all_notifications_prefs":"{\"channels\":{\"C2\":{\"muted\":true}}}"}}"#],
+            "users.prefs.setNotifications": [#"{"ok":true}"#],
+        ])
+        #expect(try await client.mutePrefs().muted == ["C1", "C2"])
+        try await client.setMuted(true, channel: "C3")
+        let fields = StubURLProtocol.requests[1].formFields
+        #expect(fields["name"] == "muted")
+        #expect(fields["value"] == "true")
+        #expect(fields["channel_id"] == "C3")
+    }
+
     @Test func realTimeURLComesFromRTMConnect() async throws {
         StubURLProtocol.reset(["rtm.connect": [#"{"ok":true,"url":"wss://wss-primary.slack.com/websocket/abc"}"#]])
         #expect(try await client.realTimeURL().absoluteString == "wss://wss-primary.slack.com/websocket/abc")

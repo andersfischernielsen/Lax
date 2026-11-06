@@ -161,7 +161,9 @@ final class WorkspaceModel: Identifiable {
             guard !Task.isCancelled, let position = seenTS[channel],
                   SlackTimestamp.isBefore(markedReadTS[channel] ?? "0", position) else { return }
             markedReadTS[channel] = position
-            // The "New" line stays for the rest of the visit, as in Slack; it's gone next time.
+            // The "New" line follows the read position: it moves down to the first unread
+            // message, and goes once everything has been read.
+            unreadMarkers[channel] = position
             try? await client.markRead(channel: channel, ts: position)
         }
     }

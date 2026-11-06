@@ -54,6 +54,8 @@
 - [x] New app icon: a simple hashtag on a gradient, made as a Liquid Glass icon (an Icon
       Composer `.icon` file) so macOS renders it in its glass, dark, tinted and clear styles
 
+- [x] Rich text composer: ⌘B bold, ⌘I italic, ⇧⌘X strikethrough, ⇧⌘C code, sent as Slack markup
+
 ## Bugs
 
 - [x] Shift-Return and Option-Return don't start a new line in the composer

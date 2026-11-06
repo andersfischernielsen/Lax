@@ -45,7 +45,7 @@
 
 - [x] ⌘K Open Quickly: jump to any channel or person by typing part of the name
 
-- [ ] Dock badge like Slack's: a dot with no number for unread channels and threads; the
+- [x] Dock badge like Slack's: a dot with no number for unread channels and threads; the
       count of mentions and direct messages when there are any
 
 - [ ] Back and forward: Go ▸ Back / Forward (⌘[ / ⌘]), toolbar buttons and the mouse's

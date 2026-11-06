@@ -17,6 +17,9 @@ final class WorkspaceModel: Identifiable {
     private(set) var selectedConversationID: SlackConversation.ID?
     /// Read position per conversation as it was when opened; the "New" line goes after it.
     private(set) var unreadMarkers: [String: String] = [:]
+    /// The thread shown beside the conversation, if any.
+    private(set) var openThread: ThreadRef?
+    private(set) var threads: [ThreadRef: Timeline] = [:]
     var drafts: [String: String] = [:]
     var errorMessage: String?
 
@@ -59,6 +62,7 @@ final class WorkspaceModel: Identifiable {
         selectedConversationID = conversationID
         UserDefaults.standard.set(conversationID, forKey: lastConversationKey)
         guard let channel = conversationID else { return }
+        if openThread?.channel != channel { openThread = nil }
         unread.read(channel)
         if timelines[channel] == nil { loadOlder(in: channel) }
 
@@ -168,18 +172,51 @@ final class WorkspaceModel: Identifiable {
 
     // MARK: - Sending
 
-    func send(in channel: String) {
-        let text = (drafts[channel] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    /// Sends the draft for a conversation, or for a thread in it.
+    func send(in channel: String, thread: String? = nil) {
+        let key = thread.map { ThreadRef(channel: channel, ts: $0).draftKey } ?? channel
+        let text = (drafts[key] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
-        drafts[channel] = ""
+        drafts[key] = ""
         Task {
             do {
-                let message = try await client.postMessage(channel: channel, text: text)
-                timelines[channel]?.upsert(message)
+                let message = try await client.postMessage(channel: channel, text: text, threadTS: thread)
+                update(channel) { _ = $0.upsert(message) }
             } catch {
-                drafts[channel] = text
+                drafts[key] = text
                 errorMessage = "Couldn't send the message (\(error))."
             }
+        }
+    }
+
+    // MARK: - Threads
+
+    func openThread(_ ts: String, in channel: String) {
+        let ref = ThreadRef(channel: channel, ts: ts)
+        openThread = ref
+        Task {
+            do {
+                let messages = try await client.replies(channel: channel, threadTS: ts)
+                threads[ref] = Timeline(thread: ts, messages: messages)
+                requestNames(for: messages)
+            } catch {
+                errorMessage = "Couldn't load the thread (\(error))."
+            }
+        }
+    }
+
+    func closeThread() {
+        openThread = nil
+    }
+
+    /// Applies a change to a conversation and to any of its threads that are loaded.
+    private func update(_ channel: String, _ change: (inout Timeline) -> Void) {
+        if var timeline = timelines[channel] {
+            change(&timeline)
+            timelines[channel] = timeline
+        }
+        for ref in threads.keys where ref.channel == channel {
+            change(&threads[ref]!)
         }
     }
 
@@ -195,12 +232,12 @@ final class WorkspaceModel: Identifiable {
     func toggleReaction(_ name: String, on message: SlackMessage, in channel: String) {
         let me = account.userID
         let adding = !(message.reactions.first { $0.name == name }?.users.contains(me) ?? false)
-        timelines[channel]?.react(name, by: me, added: adding, to: message.ts)
+        update(channel) { $0.react(name, by: me, added: adding, to: message.ts) }
         Task {
             do {
                 try await client.react(name, to: message.ts, in: channel, added: adding)
             } catch {
-                timelines[channel]?.react(name, by: me, added: !adding, to: message.ts)
+                update(channel) { $0.react(name, by: me, added: !adding, to: message.ts) }
                 errorMessage = "Couldn't update the reaction (\(error))."
             }
         }
@@ -221,7 +258,7 @@ final class WorkspaceModel: Identifiable {
         switch event {
         case .message(let channel, let message):
             // Unloaded conversations fetch fresh history when opened.
-            timelines[channel]?.upsert(message)
+            update(channel) { _ = $0.upsert(message) }
             if let user = message.userID { typing.clear(userID: user, in: channel) }
             if let conversation = conversations.first(where: { $0.id == channel }) {
                 let isOpen = channel == selectedConversationID && NSApplication.shared.isActive
@@ -230,14 +267,14 @@ final class WorkspaceModel: Identifiable {
             requestNames(for: [message])
             markReadIfVisible(channel)
         case .reaction(let channel, let ts, let name, let user, let added):
-            timelines[channel]?.react(name, by: user, added: added, to: ts)
+            update(channel) { $0.react(name, by: user, added: added, to: ts) }
         case .marked(let channel, let unreadCount, let mentionCount):
             unread.marked(channel, unreadCount: unreadCount, mentionCount: mentionCount)
         case .messageChanged(let channel, let message):
-            timelines[channel]?.replace(message)
+            update(channel) { $0.replace(message) }
             requestNames(for: [message])
         case .messageDeleted(let channel, let ts):
-            timelines[channel]?.remove(ts: ts)
+            update(channel) { $0.remove(ts: ts) }
         case .userTyping(let channel, let user):
             typing.record(userID: user, in: channel)
             requestUsers([user])
@@ -245,4 +282,13 @@ final class WorkspaceModel: Identifiable {
             break
         }
     }
+}
+
+/// A thread: its conversation and the parent message's `ts`.
+struct ThreadRef: Hashable {
+    let channel: String
+    let ts: String
+
+    /// Where the thread's unsent reply lives in `drafts`.
+    var draftKey: String { "\(channel)/\(ts)" }
 }

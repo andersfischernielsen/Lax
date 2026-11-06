@@ -8,6 +8,7 @@ public enum RealTimeEvent: Equatable, Sendable {
     case messageChanged(channel: String, SlackMessage)
     case messageDeleted(channel: String, ts: String)
     case userTyping(channel: String, userID: String)
+    case reaction(channel: String, ts: String, name: String, userID: String, added: Bool)
     /// The read position moved, here or in another client.
     case marked(channel: String, unreadCount: Int, mentionCount: Int)
     case other(type: String)
@@ -34,6 +35,11 @@ public enum RealTimeEvent: Equatable, Sendable {
             return .userTyping(channel: channel, userID: user)
         case "message":
             return parseMessage(envelope, data: data, decoder: decoder)
+        case "reaction_added", "reaction_removed":
+            guard let item = envelope.item, item.type == "message", let user = envelope.user,
+                  let name = envelope.reaction else { return nil }
+            return .reaction(channel: item.channel, ts: item.ts, name: name, userID: user,
+                             added: type == "reaction_added")
         case "channel_marked", "group_marked", "im_marked", "mpim_marked":
             guard let channel = envelope.channel else { return nil }
             return .marked(channel: channel,
@@ -70,9 +76,17 @@ public enum RealTimeEvent: Equatable, Sendable {
         let unreadCountDisplay: Int?
         let mentionCount: Int?
         let mentionCountDisplay: Int?
+        let reaction: String?
+        let item: Item?
+
+        struct Item: Decodable {
+            let type: String
+            let channel: String
+            let ts: String
+        }
 
         enum CodingKeys: String, CodingKey {
-            case type, subtype, channel, user, message
+            case type, subtype, channel, user, message, reaction, item
             case deletedTS = "deleted_ts"
             case unreadCount = "unread_count"
             case unreadCountDisplay = "unread_count_display"

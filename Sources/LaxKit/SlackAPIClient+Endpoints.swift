@@ -40,6 +40,11 @@ extension SlackAPIClient {
         let _: Empty = try await call("conversations.mark", ["channel": channel, "ts": ts])
     }
 
+    public func react(_ name: String, to ts: String, in channel: String, added: Bool) async throws {
+        let _: Empty = try await call(added ? "reactions.add" : "reactions.remove",
+                                      ["channel": channel, "timestamp": ts, "name": name])
+    }
+
     /// Unread state for every conversation, as Slack's web client fetches it on start.
     public func unreadCounts() async throws -> UnreadState {
         let response: CountsResponse = try await call("client.counts", ["thread_counts_by_channel": "true"])

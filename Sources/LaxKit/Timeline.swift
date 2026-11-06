@@ -34,6 +34,12 @@ public struct Timeline: Equatable, Sendable {
         messages[index] = message
     }
 
+    /// Applies a reaction change to a loaded message.
+    public mutating func react(_ name: String, by user: String, added: Bool, to ts: String) {
+        guard let index = messages.firstIndex(where: { $0.ts == ts }) else { return }
+        messages[index] = messages[index].reacting(name, by: user, added: added)
+    }
+
     public mutating func remove(ts: String) {
         messages.removeAll { $0.ts == ts }
     }

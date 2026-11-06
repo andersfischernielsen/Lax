@@ -85,12 +85,15 @@ public struct SlackMessage: Decodable, Hashable, Identifiable, Sendable {
     public let threadTS: String?
     public let replyCount: Int
     public let isEdited: Bool
+    public internal(set) var reactions: [SlackReaction]
+    public let files: [SlackFile]
 
     public var id: String { ts }
     public var date: Date { Date(timeIntervalSince1970: Double(ts) ?? 0) }
 
     public init(ts: String, userID: String?, text: String, botID: String? = nil, username: String? = nil,
-                subtype: String? = nil, threadTS: String? = nil, replyCount: Int = 0, isEdited: Bool = false) {
+                subtype: String? = nil, threadTS: String? = nil, replyCount: Int = 0, isEdited: Bool = false,
+                reactions: [SlackReaction] = [], files: [SlackFile] = []) {
         self.ts = ts
         self.userID = userID
         self.botID = botID
@@ -100,6 +103,8 @@ public struct SlackMessage: Decodable, Hashable, Identifiable, Sendable {
         self.threadTS = threadTS
         self.replyCount = replyCount
         self.isEdited = isEdited
+        self.reactions = reactions
+        self.files = files
     }
 
     public init(from decoder: Decoder) throws {
@@ -113,10 +118,13 @@ public struct SlackMessage: Decodable, Hashable, Identifiable, Sendable {
         threadTS = try c.decodeIfPresent(String.self, forKey: .threadTS)
         replyCount = try c.decodeIfPresent(Int.self, forKey: .replyCount) ?? 0
         isEdited = c.contains(.edited)
+        reactions = try c.decodeIfPresent([SlackReaction].self, forKey: .reactions) ?? []
+        // Files Slack has deleted or hidden come back with only an ID; skip those.
+        files = (try c.decodeIfPresent([Failable<SlackFile>].self, forKey: .files) ?? []).compactMap(\.value)
     }
 
     private enum Keys: String, CodingKey {
-        case ts, user, username, text, subtype, edited
+        case ts, user, username, text, subtype, edited, reactions, files
         case botID = "bot_id"
         case threadTS = "thread_ts"
         case replyCount = "reply_count"

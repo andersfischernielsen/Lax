@@ -11,6 +11,11 @@ final class AppModel {
 
     @ObservationIgnored private let store = CredentialStore()
 
+    /// Any workspace has something unread worth a look; drives the Dock icon's dot.
+    var needsAttention: Bool {
+        workspaces.values.contains { $0.unread.needsAttention(muted: $0.muted) }
+    }
+
     var currentWorkspace: WorkspaceModel? {
         selectedAccountID.flatMap { workspaces[$0] }
     }

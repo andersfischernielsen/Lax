@@ -18,6 +18,10 @@ struct LaxApp: App {
         WindowGroup {
             ContentView(model: model)
                 .task { model.load() }
+                // A dot on the Dock icon instead of notifications.
+                .onChange(of: model.needsAttention, initial: true) { _, needsAttention in
+                    NSApplication.shared.dockTile.badgeLabel = needsAttention ? "•" : nil
+                }
         }
         .commands {
             CommandGroup(after: .newItem) {

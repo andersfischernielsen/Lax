@@ -67,10 +67,10 @@ final class WorkspaceModel: Identifiable {
 
     nonisolated var id: SlackAccount.ID { account.id }
 
-    init(account: SlackAccount) {
+    init(account: SlackAccount, session: URLSession = .shared) {
         self.account = account
-        client = SlackAPIClient(credentials: account.credentials)
-        connection = RealTimeConnection(client: client)
+        client = SlackAPIClient(credentials: account.credentials, session: session)
+        connection = RealTimeConnection(client: client, session: session)
     }
 
     private var lastConversationKey: String { "lastConversation.\(account.id)" }
@@ -81,7 +81,8 @@ final class WorkspaceModel: Identifiable {
 
     /// The conversation last opened in any window, for new windows to start with.
     var lastConversationID: SlackConversation.ID? {
-        UserDefaults.standard.string(forKey: lastConversationKey)
+        // UI tests start from a clean slate every launch.
+        UITestingSlack.isEnabled ? nil : UserDefaults.standard.string(forKey: lastConversationKey)
     }
 
     func start() {

@@ -28,6 +28,7 @@ struct SidebarView: View {
                 }
             }
             .pickerStyle(.segmented)
+            .accessibilityIdentifier("area-picker")
             .labelStyle(.iconOnly)
             .labelsHidden()
             .padding(.horizontal, 10)
@@ -114,6 +115,7 @@ private struct FollowedThreadList: View {
         List(selection: selection(threads)) {
             ForEach(threads) { thread in
                 FollowedThreadRow(workspace: workspace, thread: thread)
+                    .accessibilityIdentifier("followed-thread-\(thread.id)")
                     .tag(ThreadRef(channel: thread.channelID, ts: thread.root.ts))
                     .onAppear { if thread.id == threads.last?.id { workspace.loadMoreFollowedThreads() } }
             }
@@ -196,6 +198,7 @@ private struct ConversationRow: View {
         }
         .foregroundStyle(isHighlighted ? AnyShapeStyle(.primary)
                          : isMuted ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
+        .accessibilityIdentifier("conversation-\(id)")
         .badge(counts.mentions)
         // Red-filled, like an app icon badge.
         .badgeProminence(.increased)

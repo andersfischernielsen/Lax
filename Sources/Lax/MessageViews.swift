@@ -57,6 +57,8 @@ struct MessageItem: View {
             }
         }
         .contentShape(Rectangle())
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("message-\(message.ts)")
         .contextMenu { menu }
         .confirmationDialog("Delete this message?", isPresented: $confirmingDelete) {
             Button("Delete", role: .destructive) { workspace.delete(message, in: channel) }
@@ -187,6 +189,7 @@ struct AvatarView: View {
 /// The message field, with a status line above it such as who is typing.
 struct ComposerView<Status: View>: View {
     let placeholder: String
+    var identifier = "composer"
     @Binding var draft: String
     @ViewBuilder var status: Status
     let send: () -> Void
@@ -200,6 +203,7 @@ struct ComposerView<Status: View>: View {
                 .padding(10)
                 .background(RoundedRectangle(cornerRadius: 8).strokeBorder(.separator))
                 .onSubmit(send)
+                .accessibilityIdentifier(identifier)
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 12)
@@ -207,8 +211,8 @@ struct ComposerView<Status: View>: View {
 }
 
 extension ComposerView where Status == EmptyView {
-    init(placeholder: String, draft: Binding<String>, send: @escaping () -> Void) {
-        self.init(placeholder: placeholder, draft: draft, status: { EmptyView() }, send: send)
+    init(placeholder: String, identifier: String, draft: Binding<String>, send: @escaping () -> Void) {
+        self.init(placeholder: placeholder, identifier: identifier, draft: draft, status: { EmptyView() }, send: send)
     }
 }
 

@@ -31,7 +31,7 @@ struct QuickSwitcherView: View {
                 ScrollViewReader { proxy in
                     List(ids, id: \.self, selection: $highlighted) { id in
                         if let conversation = workspace.conversation(id) {
-                            row(conversation).id(id)
+                            row(conversation).id(id).accessibilityIdentifier("quick-switcher-\(id)")
                         }
                     }
                     .listStyle(.plain)

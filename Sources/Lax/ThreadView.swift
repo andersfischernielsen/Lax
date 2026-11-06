@@ -48,10 +48,11 @@ struct ThreadView: View {
                 }
             }
 
-            ComposerView(placeholder: "Reply…", draft: draft) {
+            ComposerView(placeholder: "Reply…", identifier: "thread-composer", draft: draft) {
                 workspace.send(in: thread.channel, thread: thread.ts)
             }
         }
+        .accessibilityIdentifier("thread-view")
         .task { await workspace.loadThread(thread) }
     }
 

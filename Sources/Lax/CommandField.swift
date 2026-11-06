@@ -19,6 +19,7 @@ struct CommandField: NSViewRepresentable {
         field.focusRingType = .none
         field.font = .preferredFont(forTextStyle: .title3)
         field.placeholderString = placeholder
+        field.setAccessibilityIdentifier("quick-switcher-field")
         field.delegate = context.coordinator
         return field
     }

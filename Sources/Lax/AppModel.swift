@@ -45,6 +45,10 @@ final class AppModel {
     }
 
     func load() {
+        guard !UITestingSlack.isEnabled else {
+            accounts = [UITestingSlack.account]
+            return syncWorkspaces()
+        }
         do {
             accounts = try store.loadAll()
             Log.workspace.info("loaded \(self.accounts.count) account(s) from the Keychain")
@@ -94,7 +98,9 @@ final class AppModel {
             workspaces[id] = nil
         }
         for account in accounts where workspaces[account.id] == nil {
-            let workspace = WorkspaceModel(account: account)
+            let workspace = UITestingSlack.isEnabled
+                ? WorkspaceModel(account: account, session: UITestingSlack.session)
+                : WorkspaceModel(account: account)
             workspaces[account.id] = workspace
             workspace.start()
         }

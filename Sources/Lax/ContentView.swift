@@ -58,6 +58,7 @@ struct ContentView: View {
                 } else {
                     ContentUnavailableView("No Thread", systemImage: "bubble.left.and.text.bubble.right",
                                            description: Text("Select a message to see its thread here."))
+                        .accessibilityIdentifier("no-thread")
                 }
             }
             .inspectorColumnWidth(min: 300, ideal: 380, max: 560)
@@ -109,9 +110,11 @@ struct ContentView: View {
         .toolbar {
             ToolbarItemGroup(placement: .navigation) {
                 Button("Back", systemImage: "chevron.backward", action: window.goBack)
+                    .accessibilityIdentifier("back")
                     .disabled(!window.history.canGoBack)
                     .help("Go back")
                 Button("Forward", systemImage: "chevron.forward", action: window.goForward)
+                    .accessibilityIdentifier("forward")
                     .disabled(!window.history.canGoForward)
                     .help("Go forward")
             }

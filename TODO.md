@@ -48,6 +48,9 @@
 - [ ] Dock badge like Slack's: a dot with no number for unread channels and threads; the
       count of mentions and direct messages when there are any
 
+- [ ] Back and forward: Go ▸ Back / Forward (⌘[ / ⌘]), toolbar buttons and the mouse's
+      back and forward buttons, through conversations and threads visited in a window
+
 ## Apple quality
 
 - [x] Performance pass: rows redraw only when their own data changes (split the

@@ -16,23 +16,24 @@ struct MessageItem: View {
     ]
 
     var body: some View {
+        let text = MessageStyle.styled(formatter.attributed(message.markup))
         MessageRow(
             message: message,
             author: workspace.authorName(of: message),
             avatarURL: message.userID.flatMap { workspace.users[$0] }?.avatarURL,
-            text: MessageStyle.styled(formatter.attributed(message.markup)),
+            text: RichText.text(text, emojiImages: workspace.emojiImages),
             showsHeader: showsHeader,
             isSystem: message.subtype.map(Self.systemSubtypes.contains) ?? false
         ) {
             ForEach(Array(message.attachments.enumerated()), id: \.offset) { _, attachment in
-                AttachmentView(attachment: attachment, formatter: formatter)
+                AttachmentView(attachment: attachment, formatter: formatter, emojiImages: workspace.emojiImages)
             }
             if !message.files.isEmpty {
                 FilesView(files: message.files, loadImage: workspace.image(at:))
             }
             if !message.reactions.isEmpty {
                 ReactionsView(reactions: message.reactions, ownUserID: workspace.account.userID,
-                              userName: workspace.userName) { name in
+                              userName: workspace.userName, emojiImages: workspace.emojiImages) { name in
                     workspace.toggleReaction(name, on: message, in: channel)
                 }
             }
@@ -45,6 +46,15 @@ struct MessageItem: View {
                 .padding(.top, 2)
             }
         }
+        .onAppear { workspace.requestEmojiImages(customEmojiNames(in: text)) }
+    }
+
+    /// Custom emoji in the message, its attachments and its reactions.
+    private func customEmojiNames(in text: AttributedString) -> Set<String> {
+        let attachmentTexts = message.attachments.flatMap { [$0.pretext, $0.body].compactMap { $0 } }
+        return attachmentTexts.reduce(into: RichText.customEmojiNames(in: text)) { names, markup in
+            names.formUnion(RichText.customEmojiNames(in: formatter.attributed(markup)))
+        }.union(message.reactions.map(\.name).filter { Emoji.character(for: $0) == nil })
     }
 
     /// Consecutive messages from one author within five minutes share a header.
@@ -61,7 +71,7 @@ struct MessageRow<Footer: View>: View {
     let message: SlackMessage
     let author: String
     let avatarURL: URL?
-    let text: AttributedString
+    let text: Text
     let showsHeader: Bool
     let isSystem: Bool
     @ViewBuilder let footer: Footer
@@ -83,7 +93,7 @@ struct MessageRow<Footer: View>: View {
                         if message.isEdited { Text("(edited)").font(.caption).foregroundStyle(.secondary) }
                     }
                 }
-                Text(text)
+                text
                     .foregroundStyle(isSystem ? .secondary : .primary)
                     .textSelection(.enabled)
                 footer

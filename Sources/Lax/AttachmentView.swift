@@ -1,3 +1,4 @@
+import AppKit
 import LaxKit
 import SwiftUI
 
@@ -5,11 +6,12 @@ import SwiftUI
 struct AttachmentView: View {
     let attachment: SlackAttachment
     let formatter: SlackText
+    let emojiImages: [String: NSImage]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let pretext = attachment.pretext {
-                Text(MessageStyle.styled(formatter.attributed(pretext))).textSelection(.enabled)
+                rich(pretext).textSelection(.enabled)
             }
             HStack(alignment: .top, spacing: 10) {
                 RoundedRectangle(cornerRadius: 2)
@@ -23,7 +25,7 @@ struct AttachmentView: View {
                         titleView(title).fontWeight(.semibold)
                     }
                     if let body = attachment.body {
-                        Text(MessageStyle.styled(formatter.attributed(body))).textSelection(.enabled)
+                        rich(body).textSelection(.enabled)
                     }
                     if !attachment.fields.isEmpty { fields }
                     if let footer = attachment.footer {
@@ -34,6 +36,10 @@ struct AttachmentView: View {
             .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.top, 4)
+    }
+
+    private func rich(_ markup: String) -> Text {
+        RichText.text(MessageStyle.styled(formatter.attributed(markup)), emojiImages: emojiImages)
     }
 
     private var barColor: Color {
@@ -56,7 +62,7 @@ struct AttachmentView: View {
                     ForEach(Array(row.enumerated()), id: \.offset) { _, field in
                         VStack(alignment: .leading, spacing: 1) {
                             Text(field.title).font(.caption.weight(.semibold))
-                            Text(MessageStyle.styled(formatter.attributed(field.value))).textSelection(.enabled)
+                            rich(field.value).textSelection(.enabled)
                         }
                         .gridCellColumns(field.isShort ? 1 : 2)
                     }

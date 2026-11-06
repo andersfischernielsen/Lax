@@ -9,6 +9,9 @@ final class WorkspaceModel: Identifiable {
     private(set) var conversations: [SlackConversation] = []
     private(set) var users: [String: SlackUser] = [:]
     private(set) var userGroupHandles: [String: String] = [:]
+    private(set) var customEmoji: [String: SlackEmoji] = [:]
+    /// Custom emoji images by name, sized for inline text.
+    private(set) var emojiImages: [String: NSImage] = [:]
     private(set) var timelines: [String: Timeline] = [:]
     private(set) var typing = TypingTracker()
     private(set) var unread = UnreadState()
@@ -32,6 +35,7 @@ final class WorkspaceModel: Identifiable {
     @ObservationIgnored private var markedReadTS: [String: String] = [:]
     @ObservationIgnored private let images = NSCache<NSURL, NSImage>()
     @ObservationIgnored private var mutePrefs = MutePrefs()
+    @ObservationIgnored private var requestedEmoji: Set<String> = []
 
     nonisolated var id: SlackAccount.ID { account.id }
 
@@ -53,6 +57,7 @@ final class WorkspaceModel: Identifiable {
             Task { await loadUserGroups() },
             Task { await loadUnreadCounts() },
             Task { await loadMutePrefs() },
+            Task { await loadCustomEmoji() },
             Task { await listen() },
         ]
     }
@@ -112,8 +117,9 @@ final class WorkspaceModel: Identifiable {
         let channelNames = Dictionary(conversations.compactMap { c in c.name.map { (c.id, $0) } },
                                       uniquingKeysWith: { first, _ in first })
         let groups = userGroupHandles
+        let emoji = customEmoji
         return SlackText(userName: { userNames[$0] }, channelName: { channelNames[$0] },
-                         subteamHandle: { groups[$0] })
+                         subteamHandle: { groups[$0] }, customEmoji: { emoji[$0] })
     }
 
     // MARK: - Loading
@@ -145,6 +151,21 @@ final class WorkspaceModel: Identifiable {
             requestUsers(Set(conversations.compactMap(\.userID)))
         } catch {
             errorMessage = "Couldn't load conversations (\(error))."
+        }
+    }
+
+    private func loadCustomEmoji() async {
+        customEmoji = (try? await client.customEmoji()) ?? customEmoji
+    }
+
+    /// Fetches custom emoji images the first time they're shown.
+    func requestEmojiImages(_ names: Set<String>) {
+        let missing = names.subtracting(requestedEmoji)
+        guard !missing.isEmpty else { return }
+        requestedEmoji.formUnion(missing)
+        for name in missing {
+            guard case .image(let url) = customEmoji[name] else { continue }
+            Task { emojiImages[name] = await image(at: url) }
         }
     }
 
@@ -321,6 +342,9 @@ final class WorkspaceModel: Identifiable {
         case .userTyping(let channel, let user):
             typing.record(userID: user, in: channel)
             requestUsers([user])
+        case .other("emoji_changed"):
+            requestedEmoji = []
+            Task { await loadCustomEmoji() }
         case .hello, .goodbye, .other:
             break
         }

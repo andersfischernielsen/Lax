@@ -1,3 +1,4 @@
+import AppKit
 import LaxKit
 import SwiftUI
 
@@ -6,6 +7,7 @@ struct ReactionsView: View {
     let reactions: [SlackReaction]
     let ownUserID: String
     let userName: (String) -> String?
+    let emojiImages: [String: NSImage]
     let toggle: (String) -> Void
 
     var body: some View {
@@ -14,7 +16,7 @@ struct ReactionsView: View {
                 let isMine = reaction.users.contains(ownUserID)
                 Button { toggle(reaction.name) } label: {
                     HStack(spacing: 4) {
-                        Text(Emoji.character(for: reaction.name) ?? ":\(reaction.name):")
+                        emoji(reaction.name)
                         Text("\(reaction.count)").font(.caption.monospacedDigit())
                     }
                     .padding(.horizontal, 7)
@@ -27,6 +29,16 @@ struct ReactionsView: View {
             }
         }
         .padding(.top, 4)
+    }
+
+    @ViewBuilder private func emoji(_ name: String) -> some View {
+        if let character = Emoji.character(for: name) {
+            Text(character)
+        } else if let image = emojiImages[name] {
+            Image(nsImage: RichText.inline(image, height: 16))
+        } else {
+            Text(":\(name):").foregroundStyle(.secondary)
+        }
     }
 
     private func tooltip(for reaction: SlackReaction) -> String {

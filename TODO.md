@@ -54,6 +54,10 @@
 - [ ] New app icon: a simple hashtag on a gradient, made as a Liquid Glass icon (an Icon
       Composer `.icon` file) so macOS renders it in its glass, dark, tinted and clear styles
 
+## Bugs
+
+- [ ] Shift-Return and Option-Return don't start a new line in the composer
+
 ## Apple quality
 
 - [x] Performance pass: rows redraw only when their own data changes (split the

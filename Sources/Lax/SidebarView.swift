@@ -12,7 +12,9 @@ struct SidebarView: View {
                 List {}
             }
         }
-        .safeAreaInset(edge: .top) { workspaceMenu }
+        .toolbar {
+            ToolbarItem { workspaceMenu }
+        }
         .safeAreaInset(edge: .bottom) {
             if let workspace = model.currentWorkspace { ConnectionStatusView(status: workspace.status) }
         }
@@ -33,12 +35,8 @@ struct SidebarView: View {
             }
         } label: {
             Label(model.currentWorkspace?.account.teamName ?? "Workspaces", systemImage: "building.2")
-                .font(.headline)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .labelStyle(.titleAndIcon)
         }
-        .menuStyle(.borderlessButton)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
     }
 }
 

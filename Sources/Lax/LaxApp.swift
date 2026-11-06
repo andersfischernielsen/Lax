@@ -1,4 +1,5 @@
 import AppKit
+import LaxKit
 import SwiftUI
 
 @main
@@ -24,6 +25,7 @@ struct LaxApp: App {
         }
         .commands {
             WorkspaceCommands(model: model)
+            GoCommands(model: model)
             InspectorCommands()
         }
 
@@ -44,5 +46,51 @@ private struct WorkspaceCommands: Commands {
                 .keyboardShortcut("n", modifiers: [.command, .shift])
                 .disabled(window == nil)
         }
+    }
+}
+
+/// Moving around from the keyboard, in the window in front.
+private struct GoCommands: Commands {
+    let model: AppModel
+    @FocusedValue(WindowModel.self) private var window
+
+    var body: some Commands {
+        CommandMenu("Go") {
+            Group {
+                Button("Previous Conversation") { step(by: -1) }
+                    .keyboardShortcut(.upArrow, modifiers: [.command, .option])
+                Button("Next Conversation") { step(by: 1) }
+                    .keyboardShortcut(.downArrow, modifiers: [.command, .option])
+                Divider()
+                Button("Previous Unread Conversation") { stepToUnread(-1) }
+                    .keyboardShortcut(.upArrow, modifiers: [.command, .option, .shift])
+                Button("Next Unread Conversation") { stepToUnread(1) }
+                    .keyboardShortcut(.downArrow, modifiers: [.command, .option, .shift])
+            }
+            .disabled(window == nil)
+        }
+        CommandGroup(before: .textEditing) {
+            Button("Search Messages") { window?.searchFocusRequests += 1 }
+                .keyboardShortcut("f", modifiers: [.command, .option])
+                .disabled(window == nil)
+        }
+    }
+
+    private var order: [String] {
+        guard let workspace = model.workspace(window?.accountID) else { return [] }
+        return workspace.sidebarSections.flatMap { $0.items.map(\.conversation.id) }
+    }
+
+    private func step(by offset: Int) {
+        guard let window else { return }
+        window.select(ConversationNavigation.step(from: window.conversationID, in: order, by: offset))
+    }
+
+    private func stepToUnread(_ direction: Int) {
+        guard let window, let workspace = model.workspace(window.accountID),
+              let next = ConversationNavigation.nextUnread(from: window.conversationID, in: order,
+                                                           direction: direction, isUnread: workspace.isUnread)
+        else { return NSSound.beep() }
+        window.select(next)
     }
 }

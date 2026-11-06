@@ -15,6 +15,8 @@ final class WindowModel {
     /// `ts` of the message highlighted in the conversation.
     var selectedMessage: String?
     var searchQuery = ""
+    /// Bumped to put the cursor in the search field.
+    var searchFocusRequests = 0
     /// Results of the last search; nil when not searching.
     var searchResults: [SearchResult]?
     var signIn: SignInController?

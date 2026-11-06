@@ -7,6 +7,7 @@ struct ContentView: View {
     // Restored per window when Lax relaunches.
     @SceneStorage("account") private var storedAccount: String?
     @SceneStorage("conversation") private var storedConversation: String?
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
         @Bindable var window = window
@@ -55,6 +56,8 @@ struct ContentView: View {
         .environment(window)
         .focusedSceneValue(window)
         .searchable(text: $window.searchQuery, placement: .toolbar, prompt: "Search messages")
+        .searchFocused($searchFocused)
+        .onChange(of: window.searchFocusRequests) { searchFocused = true }
         .onSubmit(of: .search) { search(in: workspace) }
         .onChange(of: window.searchQuery) { _, query in if query.isEmpty { window.clearSearch() } }
         .sheet(isPresented: editingDisplayName) {

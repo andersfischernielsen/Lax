@@ -1,0 +1,166 @@
+import Foundation
+import LaxKit
+import Observation
+
+/// Everything Lax shows for one signed-in workspace, kept current by the real-time connection.
+@MainActor @Observable
+final class WorkspaceModel: Identifiable {
+    let account: SlackAccount
+    private(set) var conversations: [SlackConversation] = []
+    private(set) var users: [String: SlackUser] = [:]
+    private(set) var timelines: [String: Timeline] = [:]
+    private(set) var typing = TypingTracker()
+    private(set) var status: RealTimeUpdate.Status = .connecting
+    private(set) var loadingHistory: Set<String> = []
+    private(set) var selectedConversationID: SlackConversation.ID?
+    var drafts: [String: String] = [:]
+    var errorMessage: String?
+
+    @ObservationIgnored private let client: SlackAPIClient
+    @ObservationIgnored private var tasks: [Task<Void, Never>] = []
+    @ObservationIgnored private var requestedUsers: Set<String> = []
+
+    nonisolated var id: SlackAccount.ID { account.id }
+
+    init(account: SlackAccount) {
+        self.account = account
+        client = SlackAPIClient(credentials: account.credentials)
+    }
+
+    var selectedConversation: SlackConversation? {
+        conversations.first { $0.id == selectedConversationID }
+    }
+
+    func start() {
+        guard tasks.isEmpty else { return }
+        tasks = [
+            Task { await loadConversations() },
+            Task { await listen() },
+        ]
+    }
+
+    func stop() {
+        tasks.forEach { $0.cancel() }
+        tasks = []
+    }
+
+    func select(_ conversationID: SlackConversation.ID?) {
+        selectedConversationID = conversationID
+        if let conversationID, timelines[conversationID] == nil {
+            loadOlder(in: conversationID)
+        }
+    }
+
+    // MARK: - Names
+
+    func userName(_ id: String) -> String? {
+        users[id]?.preferredName
+    }
+
+    func displayName(of conversation: SlackConversation) -> String {
+        conversation.displayName(userName: userName)
+    }
+
+    func authorName(of message: SlackMessage) -> String {
+        message.userID.flatMap(userName) ?? message.username ?? message.userID ?? "Unknown"
+    }
+
+    /// A formatter that resolves mentions with the names known right now.
+    func textFormatter() -> SlackText {
+        let userNames = users.mapValues(\.preferredName)
+        let channelNames = Dictionary(conversations.compactMap { c in c.name.map { (c.id, $0) } },
+                                      uniquingKeysWith: { first, _ in first })
+        return SlackText(userName: { userNames[$0] }, channelName: { channelNames[$0] })
+    }
+
+    // MARK: - Loading
+
+    func loadOlder(in channel: String) {
+        guard !loadingHistory.contains(channel) else { return }
+        loadingHistory.insert(channel)
+        Task {
+            defer { loadingHistory.remove(channel) }
+            do {
+                let page = try await client.history(channel: channel, before: timelines[channel]?.oldestTS)
+                timelines[channel, default: Timeline()].addOlder(page)
+                requestNames(for: page.messages)
+            } catch {
+                errorMessage = "Couldn't load messages (\(error))."
+            }
+        }
+    }
+
+    private func loadConversations() async {
+        do {
+            conversations = try await client.conversations()
+            requestUsers(Set(conversations.compactMap(\.userID)))
+        } catch {
+            errorMessage = "Couldn't load conversations (\(error))."
+        }
+    }
+
+    private func requestNames(for messages: [SlackMessage]) {
+        var ids = Set(messages.compactMap(\.userID))
+        for message in messages { ids.formUnion(SlackText.mentionedUserIDs(in: message.text)) }
+        requestUsers(ids)
+    }
+
+    private func requestUsers(_ ids: Set<String>) {
+        let missing = ids.subtracting(requestedUsers)
+        guard !missing.isEmpty else { return }
+        requestedUsers.formUnion(missing)
+        Task {
+            for id in missing.sorted() {
+                if let user = try? await client.user(id: id) { users[id] = user }
+            }
+        }
+    }
+
+    // MARK: - Sending
+
+    func send(in channel: String) {
+        let text = (drafts[channel] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        drafts[channel] = ""
+        Task {
+            do {
+                let message = try await client.postMessage(channel: channel, text: text)
+                timelines[channel]?.upsert(message)
+            } catch {
+                drafts[channel] = text
+                errorMessage = "Couldn't send the message (\(error))."
+            }
+        }
+    }
+
+    // MARK: - Real time
+
+    private func listen() async {
+        for await update in RealTimeConnection(client: client).updates() {
+            switch update {
+            case .status(let newStatus): status = newStatus
+            case .event(let event): apply(event)
+            }
+        }
+    }
+
+    private func apply(_ event: RealTimeEvent) {
+        switch event {
+        case .message(let channel, let message):
+            // Unloaded conversations fetch fresh history when opened.
+            timelines[channel]?.upsert(message)
+            if let user = message.userID { typing.clear(userID: user, in: channel) }
+            requestNames(for: [message])
+        case .messageChanged(let channel, let message):
+            timelines[channel]?.replace(message)
+            requestNames(for: [message])
+        case .messageDeleted(let channel, let ts):
+            timelines[channel]?.remove(ts: ts)
+        case .userTyping(let channel, let user):
+            typing.record(userID: user, in: channel)
+            requestUsers([user])
+        case .hello, .goodbye, .other:
+            break
+        }
+    }
+}

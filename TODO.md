@@ -41,4 +41,14 @@
 - [ ] Emoji autocomplete: typing `:` suggests shortcodes, standard and custom
 - [ ] Separate native views for all threads, all DMs and the base channel view
       (e.g. their own windows or tabs, macOS-style)
-- [ ] View → Show Tab Bar doesn't work (native macOS window tabs)
+- [x] View → Show Tab Bar: each window and tab keeps its own conversation
+
+## Apple quality
+
+- [ ] Performance pass: rows redraw only when their own data changes (split the
+      workspace model), messages are formatted once and cached, avatars and emoji
+      images are cached, and images reserve their space so rows don't change height
+- [ ] Apple guideline pass: selectable message text that keeps the message menu,
+      a Settings window, accessibility labels, specific error messages instead of one
+      generic alert, sign-out confirmation, keyboard navigation in the menus, and only
+      system colors and levels (no hand-tuned opacities)

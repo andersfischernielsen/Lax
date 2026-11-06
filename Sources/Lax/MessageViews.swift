@@ -26,15 +26,20 @@ struct MessageItem: View {
         let formatter = workspace.textFormatter()
         let text = workspace.formattedText(message.markup)
         let emojiImage = { (name: String) in workspace.emojiImages[name] }
+        let jumbomoji = message.files.isEmpty && message.attachments.isEmpty ? Jumbomoji.items(in: message.markup) : nil
         MessageRow(
             message: message,
             author: workspace.authorName(of: message),
             avatar: message.userID.flatMap { workspace.users[$0] }?.avatarURL
                 .map { AvatarView(url: $0, workspace: workspace) },
-            text: RichText.text(text, emojiImage: emojiImage),
+            // Emoji-only messages show their emoji large instead, as in Slack.
+            text: jumbomoji == nil ? RichText.text(text, emojiImage: emojiImage) : nil,
             showsHeader: showsHeader,
             isSystem: message.subtype.map(Self.systemSubtypes.contains) ?? false
         ) {
+            if let jumbomoji {
+                JumbomojiView(items: jumbomoji, emojiImage: emojiImage)
+            }
             ForEach(Array(message.attachments.enumerated()), id: \.offset) { _, attachment in
                 AttachmentView(attachment: attachment, formatter: formatter, emojiImage: emojiImage)
             }
@@ -121,7 +126,8 @@ struct MessageRow<Footer: View>: View {
     let message: SlackMessage
     let author: String
     let avatar: AvatarView?
-    let text: Text
+    /// The message body; nil when the footer shows it instead, as for jumbomoji.
+    let text: Text?
     let showsHeader: Bool
     let isSystem: Bool
     @ViewBuilder let footer: Footer
@@ -150,8 +156,9 @@ struct MessageRow<Footer: View>: View {
                 }
                 // Not selectable: selectable text brings its own right-click menu, which would
                 // hide the message menu. ⌘C copies the selected message instead.
-                text
-                    .foregroundStyle(isSystem ? .secondary : .primary)
+                if let text {
+                    text.foregroundStyle(isSystem ? .secondary : .primary)
+                }
                 footer
             }
         }
@@ -397,5 +404,39 @@ private struct BotButtons: View {
         }
         .controlSize(.small)
         .padding(.top, 4)
+    }
+}
+
+/// A message of only emoji, shown large; custom ones play if animated.
+private struct JumbomojiView: View {
+    static let size: CGFloat = 32
+    let items: [Jumbomoji.Item]
+    let emojiImage: (String) -> NSImage?
+
+    var body: some View {
+        FlowLayout(spacing: 4) {
+            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                switch item {
+                case .character(let character):
+                    Text(character).font(.system(size: Self.size))
+                case .shortcode(let name):
+                    if let character = Emoji.character(for: name) {
+                        Text(character).font(.system(size: Self.size))
+                    } else if let image = emojiImage(name) {
+                        EmojiImage(image: image, height: Self.size)
+                    } else {
+                        // Its place, until the image loads.
+                        Color.clear.frame(width: Self.size, height: Self.size)
+                    }
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(items.map { item -> String in
+            switch item {
+            case .character(let character): character
+            case .shortcode(let name): name.replacing("_", with: " ")
+            }
+        }.joined(separator: ", "))
     }
 }

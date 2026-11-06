@@ -60,13 +60,19 @@ extension SlackAPIClient {
                                       ["channel": channel, "timestamp": ts, "name": name])
     }
 
-    /// Unread state for every conversation, as Slack's web client fetches it on start.
-    public func unreadCounts() async throws -> UnreadState {
+    /// Unread state and latest activity for every conversation, and for followed threads,
+    /// as Slack's web client fetches it on start.
+    public func clientCounts() async throws -> ClientCounts {
         let response: CountsResponse = try await call("client.counts", ["thread_counts_by_channel": "true"])
         let all = (response.channels ?? []) + (response.mpims ?? []) + (response.ims ?? [])
-        return UnreadState(Dictionary(all.map {
-            ($0.id, UnreadState.Counts(hasUnreads: $0.hasUnreads ?? false, mentions: $0.mentionCount ?? 0))
-        }, uniquingKeysWith: { first, _ in first }))
+        return ClientCounts(
+            unread: UnreadState(Dictionary(all.map {
+                ($0.id, UnreadState.Counts(hasUnreads: $0.hasUnreads ?? false, mentions: $0.mentionCount ?? 0))
+            }, uniquingKeysWith: { first, _ in first })),
+            latest: Dictionary(all.compactMap { c in c.latest.map { (c.id, $0) } }, uniquingKeysWith: { first, _ in first }),
+            threads: UnreadState.Counts(hasUnreads: response.threads?.hasUnreads ?? false,
+                                        mentions: response.threads?.mentionCount ?? 0)
+        )
     }
 
     /// User group ID → handle (without the @), for `<!subteam^S…>` mentions.
@@ -227,18 +233,39 @@ private struct ConversationInfoResponse: Decodable {
     let channel: Channel
 }
 
+public struct ClientCounts: Sendable {
+    public let unread: UnreadState
+    /// `ts` of each conversation's newest message, for ordering by activity.
+    public let latest: [String: String]
+    /// Followed threads, taken together.
+    public let threads: UnreadState.Counts
+}
+
 private struct CountsResponse: Decodable {
     struct Conversation: Decodable {
         let id: String
         let hasUnreads: Bool?
         let mentionCount: Int?
+        let latest: String?
 
         enum CodingKeys: String, CodingKey {
-            case id
+            case id, latest
             case hasUnreads = "has_unreads"
             case mentionCount = "mention_count"
         }
     }
+
+    struct Threads: Decodable {
+        let hasUnreads: Bool?
+        let mentionCount: Int?
+
+        enum CodingKeys: String, CodingKey {
+            case hasUnreads = "has_unreads"
+            case mentionCount = "mention_count"
+        }
+    }
+
+    let threads: Threads?
 
     let channels: [Conversation]?
     let mpims: [Conversation]?

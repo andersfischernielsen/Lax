@@ -98,12 +98,15 @@ struct EndpointTests {
 
     @Test func unreadCountsCoverAllConversationKinds() async throws {
         StubURLProtocol.reset(["client.counts": [#"""
-            {"ok":true,"threads":{},
+            {"ok":true,"threads":{"has_unreads":true,"mention_count":1},
              "channels":[{"id":"C1","has_unreads":true,"mention_count":2},{"id":"C2","has_unreads":false}],
              "mpims":[{"id":"G1","has_unreads":true,"mention_count":1}],
-             "ims":[{"id":"D1","has_unreads":true,"mention_count":3}]}
+             "ims":[{"id":"D1","has_unreads":true,"mention_count":3,"latest":"5.0"}]}
             """#]])
-        let unread = try await client.unreadCounts()
+        let counts = try await client.clientCounts()
+        let unread = counts.unread
+        #expect(counts.latest == ["D1": "5.0"])
+        #expect(counts.threads == .init(hasUnreads: true, mentions: 1))
         #expect(unread["C1"] == .init(hasUnreads: true, mentions: 2))
         #expect(unread["C2"] == .init())
         #expect(unread["G1"].mentions == 1)

@@ -19,6 +19,10 @@ final class WorkspaceModel: Identifiable {
     /// Who is typing, per conversation.
     let typing = KeyedStore<String, TypingTracker>()
     private(set) var unread = UnreadState()
+    /// `ts` of each conversation's newest message, for ordering DMs by activity.
+    private(set) var latestActivity: [String: String] = [:]
+    /// Followed threads taken together, for the Threads entry in the sidebar.
+    private(set) var threadsUnread = UnreadState.Counts()
     /// Muted conversations, derived from `mutePrefs`.
     private(set) var muted: Set<String> = []
     private(set) var status: RealTimeUpdate.Status = .connecting
@@ -271,7 +275,10 @@ final class WorkspaceModel: Identifiable {
     }
 
     private func loadUnreadCounts() async {
-        if let counts = try? await client.unreadCounts() { unread = counts }
+        guard let counts = try? await client.clientCounts() else { return }
+        unread = counts.unread
+        latestActivity = counts.latest
+        threadsUnread = counts.threads
     }
 
     private func loadUserGroups() async {

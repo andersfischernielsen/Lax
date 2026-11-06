@@ -1,14 +1,43 @@
 import LaxKit
 import SwiftUI
 
+/// A window: reads its saved state, then shows it.
 struct ContentView: View {
     let model: AppModel
-    @State private var window = WindowModel()
     // Restored per window when Lax relaunches.
     @SceneStorage("account") private var storedAccount: String?
     @SceneStorage("conversation") private var storedConversation: String?
     @SceneStorage("area") private var storedArea = WindowModel.Area.channels
+
+    var body: some View {
+        WindowContent(model: model, storedAccount: $storedAccount,
+                      storedConversation: $storedConversation, storedArea: $storedArea)
+    }
+}
+
+/// What a window shows. Its state starts out restored, so the first frame is already right;
+/// restoring it afterwards drew the sidebar twice, which flickered when a window reopened.
+private struct WindowContent: View {
+    let model: AppModel
+    @State private var window: WindowModel
+    @Binding var storedAccount: String?
+    @Binding var storedConversation: String?
+    @Binding var storedArea: WindowModel.Area
     @FocusState private var searchFocused: Bool
+
+    init(model: AppModel, storedAccount: Binding<String?>, storedConversation: Binding<String?>,
+         storedArea: Binding<WindowModel.Area>) {
+        self.model = model
+        _storedAccount = storedAccount
+        _storedConversation = storedConversation
+        _storedArea = storedArea
+        let window = WindowModel()
+        window.area = storedArea.wrappedValue
+        window.accountID = storedAccount.wrappedValue
+        window.conversationID = storedConversation.wrappedValue
+            ?? model.workspace(storedAccount.wrappedValue)?.lastConversationID
+        _window = State(initialValue: window)
+    }
 
     var body: some View {
         @Bindable var window = window
@@ -100,17 +129,6 @@ struct ContentView: View {
             Button("OK") { clearProblems(workspace) }
         } message: { problem in
             Text(problem.reason)
-        }
-        // Before the window first shows, and without animation: restoring after the first frame
-        // drew every list and icon twice, which flickered when a window reopened.
-        .onAppear {
-            var transaction = Transaction()
-            transaction.disablesAnimations = true
-            withTransaction(transaction) {
-                window.area = storedArea
-                window.accountID = storedAccount
-                window.conversationID = storedConversation ?? workspace?.lastConversationID
-            }
         }
         .onChange(of: window.accountID) { _, id in storedAccount = id }
         .onChange(of: window.area) { _, area in storedArea = area }

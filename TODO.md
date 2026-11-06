@@ -44,6 +44,8 @@
       View ▸ Home / Direct Messages / Threads (⌘1–3), per window or tab
 - [x] View → Show Tab Bar: each window and tab keeps its own conversation
 
+- [x] ⌘K Open Quickly: jump to any channel or person by typing part of the name
+
 ## Apple quality
 
 - [x] Performance pass: rows redraw only when their own data changes (split the

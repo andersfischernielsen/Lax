@@ -97,3 +97,12 @@ private func message(_ ts: String, _ text: String = "", thread: String? = nil, s
     #expect(accepted)
     #expect(live.messages.map(\.ts) == ["1.0", "2.0", "5.0"])
 }
+
+@Test func keepingNewestDropsOlderMessagesAndAllowsReloading() {
+    var timeline = Timeline()
+    timeline.addOlder(HistoryPage(messages: (1...5).reversed().map { message("\($0).0") }, hasMore: false))
+    let trimmed = timeline.keepingNewest(2)
+    #expect(trimmed.messages.map(\.ts) == ["4.0", "5.0"])
+    #expect(trimmed.hasOlder)
+    #expect(timeline.keepingNewest(10) == timeline)
+}

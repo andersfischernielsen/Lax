@@ -55,6 +55,15 @@ public struct Timeline: Equatable, Sendable {
         messages.removeAll { $0.ts == ts }
     }
 
+    /// Only the newest `count` messages; older ones load again when scrolled to.
+    public func keepingNewest(_ count: Int) -> Timeline {
+        guard messages.count > count else { return self }
+        var trimmed = self
+        trimmed.messages = Array(messages.suffix(count))
+        trimmed.hasOlder = true
+        return trimmed
+    }
+
     /// The `latest` to ask for when loading older messages.
     public var oldestTS: String? { messages.first?.ts }
 

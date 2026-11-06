@@ -15,6 +15,7 @@ for resources in "$bin_dir"/*.bundle; do
     [ -e "$resources" ] && cp -R "$resources" "$app/Contents/Resources/"
 done
 cp Support/Info.plist "$app/Contents/Info.plist"
+cp Support/AppIcon.icns "$app/Contents/Resources/"
 codesign --force --sign - "$app"
 
 echo "Built $app"

@@ -23,6 +23,10 @@ final class WorkspaceModel: Identifiable {
     private(set) var latestActivity: [String: String] = [:]
     /// Followed threads taken together, for the Threads entry in the sidebar.
     private(set) var threadsUnread = UnreadState.Counts()
+    /// Threads the user follows, most recently active first; nil until first loaded.
+    private(set) var followedThreads: [ThreadSummary]?
+    private(set) var hasMoreFollowedThreads = false
+    @ObservationIgnored private var loadingFollowedThreads = false
     /// Muted conversations, derived from `mutePrefs`.
     private(set) var muted: Set<String> = []
     private(set) var status: RealTimeUpdate.Status = .connecting
@@ -150,6 +154,22 @@ final class WorkspaceModel: Identifiable {
                 .filter { kinds.contains($0.kind) }
                 .map { (conversation: $0, name: displayName(of: $0)) }
                 .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending })
+        }
+    }
+
+    /// Direct messages, most recently active first.
+    var directMessagesByActivity: [(conversation: SlackConversation, name: String)] {
+        conversations.filter(\.isDirect)
+            .map { (conversation: $0, name: displayName(of: $0)) }
+            .sorted { (latestActivity[$0.conversation.id] ?? "0").localizedStandardCompare(latestActivity[$1.conversation.id] ?? "0") == .orderedDescending }
+    }
+
+    /// Conversation order for keyboard navigation in an area.
+    func navigationOrder(in area: WindowModel.Area) -> [String] {
+        switch area {
+        case .home: sidebarSections.flatMap { $0.items.map(\.conversation.id) }
+        case .directMessages: directMessagesByActivity.map(\.conversation.id)
+        case .threads: []
         }
     }
 
@@ -439,6 +459,46 @@ final class WorkspaceModel: Identifiable {
 
     // MARK: - Threads
 
+    /// Loads the first page of followed threads, replacing what was there.
+    func loadFollowedThreads() async {
+        guard !loadingFollowedThreads else { return }
+        loadingFollowedThreads = true
+        defer { loadingFollowedThreads = false }
+        do {
+            let page = try await client.followedThreads()
+            followedThreads = page.threads
+            hasMoreFollowedThreads = page.hasMore
+            requestNames(for: page.threads.flatMap { [$0.root] + $0.latestReplies })
+        } catch is CancellationError {
+        } catch {
+            problem = Problem("Couldn't Load Threads", error)
+        }
+    }
+
+    func loadMoreFollowedThreads() {
+        guard hasMoreFollowedThreads, !loadingFollowedThreads,
+              let oldest = followedThreads?.last?.latestReplyTS ?? followedThreads?.last?.root.ts else { return }
+        loadingFollowedThreads = true
+        Task {
+            defer { loadingFollowedThreads = false }
+            guard let page = try? await client.followedThreads(before: oldest) else { return }
+            let known = Set(followedThreads?.map(\.id) ?? [])
+            followedThreads = (followedThreads ?? []) + page.threads.filter { !known.contains($0.id) }
+            hasMoreFollowedThreads = page.hasMore
+            requestNames(for: page.threads.flatMap { [$0.root] + $0.latestReplies })
+        }
+    }
+
+    /// Marks a followed thread read up to its newest reply, here and in every Slack client.
+    func markRead(_ thread: ThreadSummary) {
+        followedThreads = followedThreads?.markingRead(thread.id)
+        threadsUnread.hasUnreads = followedThreads?.contains { $0.unreadReplies > 0 } ?? false
+        Task {
+            try? await client.markThreadRead(channel: thread.channelID, threadTS: thread.root.ts,
+                                             ts: thread.latestReplyTS ?? thread.root.ts)
+        }
+    }
+
     /// Fetches the whole thread; it's kept current from then on.
     func loadThread(_ ref: ThreadRef) async {
         do {
@@ -503,6 +563,13 @@ final class WorkspaceModel: Identifiable {
         case .message(let channel, let message):
             // Unloaded conversations fetch fresh history when opened.
             update(channel) { _ = $0.upsert(message) }
+            if message.isChannelLevel { latestActivity[channel] = message.ts }
+            if let threads = followedThreads {
+                followedThreads = threads.receiving(message, in: channel, ownUserID: account.userID)
+                if followedThreads?.first?.unreadReplies ?? 0 > 0, followedThreads != threads {
+                    threadsUnread.hasUnreads = true
+                }
+            }
             if let user = message.userID { typing.update(channel) { $0.clear(userID: user, in: channel) } }
             if let conversation = conversations.first(where: { $0.id == channel }) {
                 let isOpen = visible[channel] != nil && NSApplication.shared.isActive

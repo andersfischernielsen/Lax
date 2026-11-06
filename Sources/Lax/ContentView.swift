@@ -7,6 +7,7 @@ struct ContentView: View {
     // Restored per window when Lax relaunches.
     @SceneStorage("account") private var storedAccount: String?
     @SceneStorage("conversation") private var storedConversation: String?
+    @SceneStorage("area") private var storedArea = WindowModel.Area.home
     @FocusState private var searchFocused: Bool
 
     var body: some View {
@@ -19,12 +20,24 @@ struct ContentView: View {
             if let workspace {
                 if let results = window.searchResults {
                     SearchResultsView(workspace: workspace, results: results)
+                } else if window.area == .threads {
+                    if let thread = window.followedThread {
+                        ThreadView(workspace: workspace, thread: thread)
+                            .id(thread)
+                            .navigationTitle("Thread")
+                            .navigationSubtitle(workspace.conversation(thread.channel).map(workspace.displayName(of:)) ?? "")
+                    } else {
+                        ContentUnavailableView("No Thread Selected", systemImage: "text.bubble",
+                                               description: Text("Pick a thread to read and reply."))
+                            .navigationTitle(window.area.title)
+                    }
                 } else if let conversation = workspace.conversation(window.conversationID) {
                     ConversationView(workspace: workspace, conversation: conversation)
                         .id(conversation.id)
                 } else {
                     ContentUnavailableView("No Conversation Selected", systemImage: "bubble.left.and.bubble.right",
                                            description: Text("Pick a channel or direct message."))
+                        .navigationTitle(window.area.title)
                 }
             } else {
                 ContentUnavailableView {
@@ -75,10 +88,12 @@ struct ContentView: View {
             Text(problem.reason)
         }
         .task {
+            window.area = storedArea
             window.accountID = storedAccount
             window.conversationID = storedConversation ?? workspace?.lastConversationID
         }
         .onChange(of: window.accountID) { _, id in storedAccount = id }
+        .onChange(of: window.area) { _, area in storedArea = area }
         .onChange(of: window.conversationID) { _, id in storedConversation = id }
     }
 

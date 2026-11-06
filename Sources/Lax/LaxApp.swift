@@ -69,6 +69,14 @@ private struct GoCommands: Commands {
             }
             .disabled(window == nil)
         }
+        CommandGroup(before: .sidebar) {
+            ForEach(Array(WindowModel.Area.allCases.enumerated()), id: \.element) { index, area in
+                Button(area.title) { window?.area = area }
+                    .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: .command)
+                    .disabled(window == nil)
+            }
+            Divider()
+        }
         CommandGroup(before: .textEditing) {
             Button("Search Messages") { window?.searchFocusRequests += 1 }
                 .keyboardShortcut("f", modifiers: [.command, .option])
@@ -77,8 +85,8 @@ private struct GoCommands: Commands {
     }
 
     private var order: [String] {
-        guard let workspace = model.workspace(window?.accountID) else { return [] }
-        return workspace.sidebarSections.flatMap { $0.items.map(\.conversation.id) }
+        guard let window, let workspace = model.workspace(window.accountID) else { return [] }
+        return workspace.navigationOrder(in: window.area)
     }
 
     private func step(by offset: Int) {

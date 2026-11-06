@@ -8,12 +8,30 @@ struct SidebarView: View {
     @State private var signingOut: SlackAccount?
 
     var body: some View {
+        @Bindable var window = window
         Group {
             if let workspace {
-                ConversationList(workspace: workspace)
+                switch window.area {
+                case .home: ConversationList(workspace: workspace)
+                case .directMessages: DirectMessageList(workspace: workspace)
+                case .threads: FollowedThreadList(workspace: workspace)
+                }
             } else {
                 List {}
             }
+        }
+        // Switches what the sidebar lists, like Xcode's navigator bar.
+        .safeAreaInset(edge: .top) {
+            Picker("View", selection: $window.area) {
+                ForEach(WindowModel.Area.allCases) { area in
+                    Label(area.title, systemImage: area.systemImage).tag(area)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelStyle(.iconOnly)
+            .labelsHidden()
+            .padding(.horizontal, 10)
+            .padding(.bottom, 6)
         }
         .toolbar {
             ToolbarItem { workspaceMenu }
@@ -70,6 +88,91 @@ private struct ConversationList: View {
         .overlay {
             if workspace.conversations.isEmpty { ProgressView() }
         }
+    }
+}
+
+/// Direct messages only, most recently active first.
+private struct DirectMessageList: View {
+    let workspace: WorkspaceModel
+    @Environment(WindowModel.self) private var window
+
+    var body: some View {
+        List(selection: Binding(get: { window.conversationID }, set: { window.select($0) })) {
+            ForEach(workspace.directMessagesByActivity, id: \.conversation.id) { item in
+                ConversationRow(workspace: workspace, conversation: item.conversation, name: item.name)
+            }
+        }
+        .overlay {
+            if workspace.conversations.isEmpty { ProgressView() }
+        }
+    }
+}
+
+/// Threads the user follows, most recently active first; unread ones in bold.
+private struct FollowedThreadList: View {
+    let workspace: WorkspaceModel
+    @Environment(WindowModel.self) private var window
+
+    var body: some View {
+        let threads = workspace.followedThreads ?? []
+        List(selection: selection(threads)) {
+            ForEach(threads) { thread in
+                FollowedThreadRow(workspace: workspace, thread: thread)
+                    .tag(ThreadRef(channel: thread.channelID, ts: thread.root.ts))
+                    .onAppear { if thread.id == threads.last?.id { workspace.loadMoreFollowedThreads() } }
+            }
+        }
+        .overlay {
+            if workspace.followedThreads == nil {
+                ProgressView()
+            } else if threads.isEmpty {
+                ContentUnavailableView("No Threads", systemImage: "text.bubble",
+                                       description: Text("Threads you reply to or follow show up here."))
+            }
+        }
+        .task { await workspace.loadFollowedThreads() }
+    }
+
+    /// Opening a thread marks it read.
+    private func selection(_ threads: [ThreadSummary]) -> Binding<ThreadRef?> {
+        Binding(get: { window.followedThread },
+                set: { ref in
+                    window.followedThread = ref
+                    if let thread = threads.first(where: { $0.channelID == ref?.channel && $0.root.ts == ref?.ts }),
+                       thread.unreadReplies > 0 {
+                        workspace.markRead(thread)
+                    }
+                })
+    }
+}
+
+private struct FollowedThreadRow: View {
+    let workspace: WorkspaceModel
+    let thread: ThreadSummary
+
+    var body: some View {
+        let isUnread = thread.unreadReplies > 0
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Text(workspace.conversation(thread.channelID).map(workspace.displayName(of:)) ?? "Conversation")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if let ts = thread.latestReplyTS, let seconds = Double(ts) {
+                    Text(Date(timeIntervalSince1970: seconds), format: .relative(presentation: .named))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Text(workspace.authorName(of: thread.root)).fontWeight(isUnread ? .semibold : .regular)
+            // One flowing preview: line breaks would leave blank lines in two lines of space.
+            Text(workspace.plainText(of: thread.root).split(whereSeparator: \.isNewline).joined(separator: " "))
+                .lineLimit(2)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 4)
+        .badge(thread.unreadReplies)
+        .accessibilityElement(children: .combine)
     }
 }
 

@@ -4,8 +4,36 @@ import Observation
 /// What one window or tab shows. Each has its own, so tabs can show different conversations.
 @MainActor @Observable
 final class WindowModel {
+    /// What the sidebar lists: one of Slack's main views.
+    enum Area: String, CaseIterable, Identifiable {
+        case home
+        case directMessages
+        case threads
+
+        var id: Self { self }
+
+        var title: String {
+            switch self {
+            case .home: "Home"
+            case .directMessages: "Direct Messages"
+            case .threads: "Threads"
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .home: "house"
+            case .directMessages: "bubble.left.and.bubble.right"
+            case .threads: "text.bubble"
+            }
+        }
+    }
+
+    var area = Area.home
     var accountID: SlackAccount.ID?
     var conversationID: SlackConversation.ID?
+    /// The thread open in the Threads view.
+    var followedThread: ThreadRef?
     /// The thread in the inspector; the inspector can be open without one.
     var thread: ThreadRef?
     var showsInspector = false {

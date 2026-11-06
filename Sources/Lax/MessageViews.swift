@@ -186,27 +186,128 @@ struct AvatarView: View {
     }
 }
 
-/// The message field, with a status line above it such as who is typing.
+/// The message field, with a status line above it such as who is typing, and suggestions
+/// for the `@`, `#` or `:` word being typed.
+///
+/// Return sends; Shift- or Option-Return starts a new line. With suggestions showing, ↑/↓
+/// move through them, Return or Tab takes one, and Esc hides them.
 struct ComposerView<Status: View>: View {
     let placeholder: String
     var identifier = "composer"
     @Binding var draft: String
+    /// Completions for the word being typed; none unless given.
+    var suggest: (Autocomplete.Token) -> [Suggestion] = { _ in [] }
+    /// Told about each completion taken, e.g. to send mentions as tokens.
+    var accept: (Suggestion) -> Void = { _ in }
     @ViewBuilder var status: Status
     let send: () -> Void
+    @State private var selection: TextSelection?
+    @State private var highlighted = 0
+    /// The word whose suggestions were dismissed with Esc.
+    @State private var dismissed: Autocomplete.Token?
 
     var body: some View {
+        let token = Autocomplete.token(in: String(draft[..<cursor]))
+        let suggestions = token.flatMap { $0 == dismissed ? nil : suggest($0) } ?? []
         VStack(alignment: .leading, spacing: 4) {
             status
-            TextField(placeholder, text: $draft, axis: .vertical)
+            if !suggestions.isEmpty, let token {
+                SuggestionList(suggestions: suggestions, highlighted: highlighted) { take($0, for: token) }
+            }
+            TextField(placeholder, text: $draft, selection: $selection, axis: .vertical)
                 .textFieldStyle(.plain)
                 .lineLimit(1...8)
                 .padding(10)
                 .background(RoundedRectangle(cornerRadius: 8).strokeBorder(.separator))
-                .onSubmit(send)
+                .onKeyPress(keys: [.return]) { press in
+                    if !press.modifiers.isDisjoint(with: [.shift, .option]) {
+                        insert("\n")
+                    } else if let token, suggestions.indices.contains(highlighted) {
+                        take(suggestions[highlighted], for: token)
+                    } else {
+                        send()
+                    }
+                    return .handled
+                }
+                .onKeyPress(.tab) {
+                    guard let token, suggestions.indices.contains(highlighted) else { return .ignored }
+                    take(suggestions[highlighted], for: token)
+                    return .handled
+                }
+                .onKeyPress(.downArrow) {
+                    guard !suggestions.isEmpty else { return .ignored }
+                    highlighted = min(highlighted + 1, suggestions.count - 1)
+                    return .handled
+                }
+                .onKeyPress(.upArrow) {
+                    guard !suggestions.isEmpty else { return .ignored }
+                    highlighted = max(highlighted - 1, 0)
+                    return .handled
+                }
+                .onKeyPress(.escape) {
+                    guard !suggestions.isEmpty else { return .ignored }
+                    dismissed = token
+                    return .handled
+                }
+                .onChange(of: draft) { highlighted = 0 }
                 .accessibilityIdentifier(identifier)
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 12)
+    }
+
+    /// Where the cursor is; the end of the draft when that's unknown.
+    private var cursor: String.Index {
+        guard case .selection(let range) = selection?.indices,
+              range.upperBound >= draft.startIndex, range.upperBound <= draft.endIndex else { return draft.endIndex }
+        return range.upperBound
+    }
+
+    private func take(_ suggestion: Suggestion, for token: Autocomplete.Token) {
+        let before = Autocomplete.completing(String(draft[..<cursor]), token: token, with: suggestion.insert)
+        draft = before + draft[cursor...]
+        selection = TextSelection(insertionPoint: draft.index(draft.startIndex, offsetBy: before.count))
+        accept(suggestion)
+    }
+
+    /// Puts `text` in place of the selection, leaving the cursor after it.
+    private func insert(_ text: String) {
+        let range: Range<String.Index> = if case .selection(let range) = selection?.indices,
+            range.lowerBound >= draft.startIndex, range.upperBound <= draft.endIndex { range } else { draft.endIndex..<draft.endIndex }
+        let offset = draft.distance(from: draft.startIndex, to: range.lowerBound) + text.count
+        draft.replaceSubrange(range, with: text)
+        selection = TextSelection(insertionPoint: draft.index(draft.startIndex, offsetBy: offset))
+    }
+}
+
+/// Suggestions above the composer; the highlighted one is taken with Return or Tab.
+private struct SuggestionList: View {
+    let suggestions: [Suggestion]
+    let highlighted: Int
+    let take: (Suggestion) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(suggestions.enumerated()), id: \.element.id) { index, suggestion in
+                Button { take(suggestion) } label: {
+                    HStack {
+                        Text(suggestion.title).fontWeight(.medium)
+                        if let detail = suggestion.detail { Text(detail).foregroundStyle(.secondary) }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .contentShape(Rectangle())
+                    .background(index == highlighted ? AnyShapeStyle(.selection) : AnyShapeStyle(.clear),
+                                in: RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("suggestion-\(suggestion.id)")
+            }
+        }
+        .padding(4)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.separator))
     }
 }
 

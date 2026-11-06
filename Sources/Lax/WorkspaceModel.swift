@@ -54,6 +54,8 @@ final class WorkspaceModel: Identifiable {
     @ObservationIgnored private let images = NSCache<NSURL, NSImage>()
     @ObservationIgnored private var mutePrefs = MutePrefs()
     @ObservationIgnored private var requestedEmoji: Set<String> = []
+    /// Per draft, completed mentions as typed (`@Jane Doe`) and the token they're sent as.
+    @ObservationIgnored private var draftMentions: [String: [String: String]] = [:]
     @ObservationIgnored private lazy var formattedTexts = FormattedTextCache { [unowned self] lookup in
         switch lookup {
         case .user(let id): .name(userName(id))
@@ -418,17 +420,61 @@ final class WorkspaceModel: Identifiable {
         let key = thread.map { ThreadRef(channel: channel, ts: $0).draftKey } ?? channel
         let text = (drafts[key] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
+        let markup = SlackText.encodedForSending(Autocomplete.encodingMentions(in: text, draftMentions[key] ?? [:]))
         drafts[key] = ""
+        draftMentions[key] = nil
         Task {
             do {
-                let message = try await client.postMessage(channel: channel, text: SlackText.encodedForSending(text),
-                                                            threadTS: thread)
+                let message = try await client.postMessage(channel: channel, text: markup, threadTS: thread)
                 update(channel) { _ = $0.upsert(message) }
             } catch {
                 drafts[key] = text
                 problem = Problem("Couldn't Send the Message", error)
             }
         }
+    }
+
+    // MARK: - Autocomplete
+
+    /// What could complete `token`, best first.
+    func suggestions(for token: Autocomplete.Token, limit: Int = 8) -> [Suggestion] {
+        switch token.kind {
+        case .mention:
+            let specials = ["here", "channel", "everyone"].map {
+                Suggestion(id: "!\($0)", title: "@\($0)", detail: "Notify everyone here", insert: "@\($0)", token: "<!\($0)>")
+            }
+            let groups = userGroupHandles.map { id, handle in
+                Suggestion(id: id, title: "@\(handle)", detail: "Group", insert: "@\(handle)", token: "<!subteam^\(id)>")
+            }
+            let people = users.keys.compactMap { users[$0] }.filter { !$0.isBot && !$0.isDeleted }.map { user in
+                Suggestion(id: user.id, title: user.preferredName, detail: "@" + user.name,
+                           insert: "@" + user.preferredName, token: "<@\(user.id)>")
+            }
+            return ranked(people + groups + specials, query: token.query, limit: limit)
+        case .channel:
+            let channels = conversations.filter { !$0.isDirect }.compactMap { conversation in
+                conversation.name.map {
+                    Suggestion(id: conversation.id, title: "#" + $0, detail: nil, insert: "#" + $0, token: "<#\(conversation.id)>")
+                }
+            }
+            return ranked(channels, query: token.query, limit: limit)
+        case .emoji:
+            return Emoji.pickerNames(matching: token.query, custom: customEmoji).prefix(limit).map {
+                Suggestion(id: $0, title: ":\($0):", detail: Emoji.character(for: $0), insert: ":\($0):", token: nil)
+            }
+        }
+    }
+
+    private func ranked(_ suggestions: [Suggestion], query: String, limit: Int) -> [Suggestion] {
+        let byID = Dictionary(suggestions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let candidates = suggestions.map { QuickSwitcher.Candidate(id: $0.id, name: String($0.title.dropFirst($0.title.hasPrefix("@") ? 1 : 0))) }
+        return QuickSwitcher.rank(candidates, query: query, limit: limit).compactMap { byID[$0] }
+    }
+
+    /// Notes a completed mention in a draft, so it's sent as Slack's token.
+    func remember(_ suggestion: Suggestion, inDraft key: String) {
+        guard let token = suggestion.token else { return }
+        draftMentions[key, default: [:]][suggestion.insert] = token
     }
 
     /// Lets the conversation see the user typing, a few seconds at a time.
@@ -702,4 +748,16 @@ struct ReactionTarget: Identifiable {
     let message: SlackMessage
 
     var id: String { "\(channel)/\(message.ts)" }
+}
+
+/// Something that completes what's being typed: a person, group, channel or emoji.
+struct Suggestion: Identifiable, Equatable {
+    let id: String
+    let title: String
+    /// A handle, a kind, or for emoji the character itself.
+    let detail: String?
+    /// What goes in the draft.
+    let insert: String
+    /// What's sent in its place, for mentions.
+    let token: String?
 }

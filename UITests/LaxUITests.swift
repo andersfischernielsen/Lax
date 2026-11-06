@@ -115,6 +115,42 @@ final class LaxUITests: XCTestCase {
         expect(element("message-1700000900.000000"), "the sent message shows")
     }
 
+    // MARK: - Composer
+
+    func testMentionSuggestionsCompleteWithTab() {
+        element("conversation-C2").click()
+        let composer = expect(element("composer"), "the message field shows")
+        composer.click()
+        composer.typeText("Hi @ja")
+        expect(element("suggestion-U2"), "Jane is suggested")
+        composer.typeKey(.tab, modifierFlags: [])
+        XCTAssertEqual(composer.value as? String, "Hi @Jane Doe ")
+    }
+
+    func testChannelSuggestionsCompleteWithReturn() {
+        element("conversation-C2").click()
+        let composer = expect(element("composer"), "the message field shows")
+        composer.click()
+        composer.typeText("See #ran")
+        expect(element("suggestion-C2"), "#random is suggested")
+        composer.typeKey(.return, modifierFlags: [])
+        XCTAssertEqual(composer.value as? String, "See #random ")
+        XCTAssertFalse(element("message-1700000900.000000").exists, "Return took the suggestion, not sent")
+    }
+
+    func testShiftReturnStartsANewLine() {
+        element("conversation-C2").click()
+        let composer = expect(element("composer"), "the message field shows")
+        composer.click()
+        composer.typeText("one")
+        composer.typeKey(.return, modifierFlags: .shift)
+        composer.typeText("two")
+        composer.typeKey(.return, modifierFlags: .option)
+        composer.typeText("three")
+        XCTAssertEqual(composer.value as? String, "one\ntwo\nthree")
+        XCTAssertFalse(element("message-1700000900.000000").exists, "nothing was sent")
+    }
+
     // MARK: - Helpers
 
     private func element(_ identifier: String) -> XCUIElement {

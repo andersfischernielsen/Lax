@@ -135,7 +135,9 @@ struct ConversationView: View {
             }
             }
 
-            ComposerView(placeholder: "Message \(workspace.displayName(of: conversation))", draft: draft) {
+            ComposerView(placeholder: "Message \(workspace.displayName(of: conversation))", draft: draft,
+                         suggest: { workspace.suggestions(for: $0) },
+                         accept: { workspace.remember($0, inDraft: conversation.id) }) {
                 TypingIndicator(workspace: workspace, channel: conversation.id)
             } send: {
                 workspace.send(in: conversation.id)

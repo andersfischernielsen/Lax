@@ -48,7 +48,10 @@ struct ThreadView: View {
                 }
             }
 
-            ComposerView(placeholder: "Reply…", identifier: "thread-composer", draft: draft) {
+            ComposerView(placeholder: "Reply…", identifier: "thread-composer", draft: draft,
+                         suggest: { workspace.suggestions(for: $0) },
+                         accept: { workspace.remember($0, inDraft: thread.draftKey) },
+                         status: { EmptyView() }) {
                 workspace.send(in: thread.channel, thread: thread.ts)
             }
         }

@@ -18,8 +18,10 @@ struct LaxApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: "main") {
             ContentView(model: model)
+                // Joins the window in front as a tab when opened with File ▸ New Tab.
+                .background(TabJoiner())
                 // Only once a window shows: nothing may delay the first window, and setting
                 // the Dock badge before it exists stops SwiftUI from opening it.
                 .task { await model.start() }
@@ -27,6 +29,8 @@ struct LaxApp: App {
         // A window on every launch, even when the last session ended with none open.
         .defaultLaunchBehavior(.presented)
         .commands {
+            // View ▸ Show/Hide Sidebar, ⌃⌘S.
+            SidebarCommands()
             WorkspaceCommands(model: model)
             GoCommands(model: model)
             MessageCommands(model: model)
@@ -47,12 +51,38 @@ struct LaxApp: App {
 private struct WorkspaceCommands: Commands {
     let model: AppModel
     @FocusedValue(WindowModel.self) private var window
+    @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
         CommandGroup(after: .newItem) {
-            Button("Add Workspace…") { window?.beginSignIn(with: model) }
-                .keyboardShortcut("n", modifiers: [.command, .shift])
-                .disabled(window == nil)
+            // As in Safari and Finder: a new window, as a tab of the one in front.
+            Button("New Tab") {
+                TabJoiner.opener = NSApp.keyWindow
+                openWindow(id: "main")
+            }
+            .keyboardShortcut("t", modifiers: .command)
+        }
+        CommandMenu("Workspace") {
+            Group {
+                let current = model.workspace(window?.accountID)
+                // ⌃⌘1–9 switch workspaces; ⌘1–3 already switch views.
+                ForEach(Array(model.accounts.prefix(9).enumerated()), id: \.element.id) { index, account in
+                    Toggle(account.teamName, isOn: Binding(
+                        get: { current?.account.id == account.id },
+                        set: { if $0 { window?.accountID = account.id } }
+                    ))
+                    .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: [.command, .control])
+                }
+                Divider()
+                Button("Add Workspace…") { window?.beginSignIn(with: model) }
+                    .keyboardShortcut("n", modifiers: [.command, .shift])
+                Button("Set Display Name…") { window?.editingDisplayName = current?.ownDisplayName }
+                    .disabled(current == nil)
+                Divider()
+                Button("Sign Out of \(current?.account.teamName ?? "Workspace")…") { window?.signingOut = current?.account }
+                    .disabled(current == nil)
+            }
+            .disabled(window == nil)
         }
     }
 }

@@ -53,6 +53,8 @@ final class WindowModel {
     var reactingTo: ReactionTarget?
     /// A message being edited, shown in a sheet.
     var editing: MessageEdit?
+    /// A workspace waiting for confirmation before signing out of it.
+    var signingOut: SlackAccount?
     /// A message waiting for confirmation before it's deleted.
     var deleting: ReactionTarget?
 

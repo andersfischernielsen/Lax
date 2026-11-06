@@ -181,6 +181,14 @@ struct EndpointTests {
         #expect(StubURLProtocol.requests[0].formFields["query"] == "deploy")
     }
 
+    @Test func displayNameGoesInTheProfileJSON() async throws {
+        StubURLProtocol.reset(["users.profile.set": [#"{"ok":true,"profile":{"display_name":"Ann \"A\""}}"#]])
+        try await client.setDisplayName(#"Ann "A""#)
+        let profile = try #require(StubURLProtocol.requests[0].formFields["profile"])
+        let decoded = try JSONDecoder().decode([String: String].self, from: Data(profile.utf8))
+        #expect(decoded == ["display_name": #"Ann "A""#])
+    }
+
     @Test func realTimeURLComesFromRTMConnect() async throws {
         StubURLProtocol.reset(["rtm.connect": [#"{"ok":true,"url":"wss://wss-primary.slack.com/websocket/abc"}"#]])
         #expect(try await client.realTimeURL().absoluteString == "wss://wss-primary.slack.com/websocket/abc")

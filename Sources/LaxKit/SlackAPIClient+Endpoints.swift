@@ -75,6 +75,12 @@ extension SlackAPIClient {
         return Dictionary(response.usergroups.map { ($0.id, $0.handle) }, uniquingKeysWith: { first, _ in first })
     }
 
+    /// Changes the user's display name, the name Slack shows in place of their full name.
+    public func setDisplayName(_ name: String) async throws {
+        let profile = try JSONEncoder().encode(["display_name": name])
+        let _: Empty = try await call("users.profile.set", ["profile": String(decoding: profile, as: UTF8.self)])
+    }
+
     /// Messages matching a search, newest first.
     public func searchMessages(_ query: String, count: Int = 50) async throws -> [SearchResult] {
         let response: SearchResponse = try await call("search.messages", [

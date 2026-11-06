@@ -220,56 +220,60 @@ struct ComposerView<Status: View>: View {
             if !suggestions.isEmpty, let token {
                 SuggestionList(suggestions: suggestions, highlighted: highlighted) { take($0, for: token) }
             }
-            ZStack(alignment: .topLeading) {
-                // Sizes the field to its text, one line up to eight; TextEditor alone fills all
-                // the space it's given.
-                Text(plain.isEmpty ? " " : plain + " ")
-                    .lineLimit(1...8)
-                    .hidden()
-                if plain.isEmpty {
-                    // Where TextEditor starts its text: AppKit's standard line padding.
-                    Text(placeholder).foregroundStyle(.placeholder).padding(.leading, 5).allowsHitTesting(false)
+            // The field is as tall as its text: one line to start, growing to six, then scrolling.
+            // The hidden copy sets the height (TextEditor alone fills any space it's offered),
+            // wrapping like the editor, which pads its lines by AppKit's standard 5 points.
+            Text(plain.isEmpty ? " " : plain + " ")
+                .lineLimit(1...6)
+                .padding(.horizontal, 5)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .hidden()
+                .overlay(alignment: .topLeading) {
+                    if plain.isEmpty {
+                        Text(placeholder).foregroundStyle(.placeholder).padding(.leading, 5).allowsHitTesting(false)
+                    }
                 }
-                TextEditor(text: $draft, selection: $selection)
-                    .textEditorStyle(.plain)
-                    .scrollContentBackground(.hidden)
-                    .accessibilityIdentifier(identifier)
-                    // Return sends; Shift- and Option-Return fall through to a new line.
-                    .onKeyPress(keys: [.return]) { press in
-                        guard press.modifiers.isDisjoint(with: [.shift, .option]) else { return .ignored }
-                        if let token, suggestions.indices.contains(highlighted) {
-                            take(suggestions[highlighted], for: token)
-                        } else {
-                            send()
+                .overlay {
+                    TextEditor(text: $draft, selection: $selection)
+                        .textEditorStyle(.plain)
+                        .scrollContentBackground(.hidden)
+                        .accessibilityIdentifier(identifier)
+                        // Return sends; Shift- and Option-Return fall through to a new line.
+                        .onKeyPress(keys: [.return]) { press in
+                            guard press.modifiers.isDisjoint(with: [.shift, .option]) else { return .ignored }
+                            if let token, suggestions.indices.contains(highlighted) {
+                                take(suggestions[highlighted], for: token)
+                            } else {
+                                send()
+                            }
+                            return .handled
                         }
-                        return .handled
-                    }
-                    .onKeyPress(.tab) {
-                        guard let token, suggestions.indices.contains(highlighted) else { return .ignored }
-                        take(suggestions[highlighted], for: token)
-                        return .handled
-                    }
-                    .onKeyPress(.downArrow) {
-                        guard !suggestions.isEmpty else { return .ignored }
-                        highlighted = min(highlighted + 1, suggestions.count - 1)
-                        return .handled
-                    }
-                    .onKeyPress(.upArrow) {
-                        guard !suggestions.isEmpty else { return .ignored }
-                        highlighted = max(highlighted - 1, 0)
-                        return .handled
-                    }
-                    .onKeyPress(.escape) {
-                        guard !suggestions.isEmpty else { return .ignored }
-                        dismissed = token
-                        return .handled
-                    }
-                    .onKeyPress(keys: ["b", "i", "x", "c"]) { press in
-                        guard let style = Self.style(for: press) else { return .ignored }
-                        toggle(style)
-                        return .handled
-                    }
-            }
+                        .onKeyPress(.tab) {
+                            guard let token, suggestions.indices.contains(highlighted) else { return .ignored }
+                            take(suggestions[highlighted], for: token)
+                            return .handled
+                        }
+                        .onKeyPress(.downArrow) {
+                            guard !suggestions.isEmpty else { return .ignored }
+                            highlighted = min(highlighted + 1, suggestions.count - 1)
+                            return .handled
+                        }
+                        .onKeyPress(.upArrow) {
+                            guard !suggestions.isEmpty else { return .ignored }
+                            highlighted = max(highlighted - 1, 0)
+                            return .handled
+                        }
+                        .onKeyPress(.escape) {
+                            guard !suggestions.isEmpty else { return .ignored }
+                            dismissed = token
+                            return .handled
+                        }
+                        .onKeyPress(keys: ["b", "i", "x", "c"]) { press in
+                            guard let style = Self.style(for: press) else { return .ignored }
+                            toggle(style)
+                            return .handled
+                        }
+                }
             .padding(10)
             .background(RoundedRectangle(cornerRadius: 8).strokeBorder(.separator))
             .onChange(of: draft) { highlighted = 0 }

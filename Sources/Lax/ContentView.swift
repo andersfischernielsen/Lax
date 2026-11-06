@@ -101,10 +101,16 @@ struct ContentView: View {
         } message: { problem in
             Text(problem.reason)
         }
-        .task {
-            window.area = storedArea
-            window.accountID = storedAccount
-            window.conversationID = storedConversation ?? workspace?.lastConversationID
+        // Before the window first shows, and without animation: restoring after the first frame
+        // drew every list and icon twice, which flickered when a window reopened.
+        .onAppear {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                window.area = storedArea
+                window.accountID = storedAccount
+                window.conversationID = storedConversation ?? workspace?.lastConversationID
+            }
         }
         .onChange(of: window.accountID) { _, id in storedAccount = id }
         .onChange(of: window.area) { _, area in storedArea = area }

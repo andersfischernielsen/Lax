@@ -10,7 +10,7 @@ let package = Package(
     ],
     targets: [
         // Slack layer: credentials, Web API, WebSocket, cache. No UI.
-        .target(name: "LaxKit"),
+        .target(name: "LaxKit", resources: [.copy("Resources/emoji.json")]),
         .executableTarget(name: "Lax", dependencies: ["LaxKit"]),
         .testTarget(name: "LaxKitTests", dependencies: ["LaxKit"]),
     ]

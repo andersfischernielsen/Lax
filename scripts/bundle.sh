@@ -1,5 +1,5 @@
 #!/bin/sh
-# Release-builds Lax and wraps it as build/Lax.app, signed ad hoc so it runs locally.
+# Release-builds Lax and wraps it as build/Lax.app, signed with the hardened runtime.
 set -e
 cd "$(dirname "$0")/.."
 
@@ -15,6 +15,10 @@ for resources in "$bin_dir"/*.bundle; do
     [ -e "$resources" ] && cp -R "$resources" "$app/Contents/Resources/"
 done
 cp Support/Info.plist "$app/Contents/Info.plist"
+# CI passes a build number; local builds keep the one in Info.plist.
+if [ -n "$BUILD_NUMBER" ]; then
+    plutil -replace CFBundleVersion -string "$BUILD_NUMBER" "$app/Contents/Info.plist"
+fi
 # The Liquid Glass icon (Icon Composer), compiled to Assets.car plus an .icns fallback.
 xcrun actool Support/AppIcon.icon --compile "$app/Contents/Resources" --platform macosx \
     --minimum-deployment-target 27.0 --app-icon AppIcon \
@@ -23,9 +27,10 @@ xcrun actool Support/AppIcon.icon --compile "$app/Contents/Resources" --platform
 # the same app, instead of asking for access again after each ad-hoc-signed rebuild.
 identity="Lax Local Code Signing"
 if security find-certificate -c "$identity" > /dev/null 2>&1; then
-    codesign --force --sign "$identity" "$app"
+    codesign --force --options runtime --sign "$identity" "$app"
 else
-    codesign --force --sign - "$app"
+    codesign --force --options runtime --sign - "$app"
 fi
+codesign --verify --strict "$app"
 
 echo "Built $app"

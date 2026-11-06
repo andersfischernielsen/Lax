@@ -1,0 +1,51 @@
+name: Release
+
+# Every push to main builds Lax, runs the tests and publishes the app as a release.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 27
+        run: |
+          xcode="$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -n 1)"
+          if [ -z "$xcode" ]; then
+            echo "::error::Lax needs Xcode 27 (the macOS 27 SDK); this runner has: $(ls -d /Applications/Xcode*.app | xargs)"
+            exit 1
+          fi
+          sudo xcode-select --switch "$xcode"
+          xcodebuild -version
+
+      - name: Test
+        run: swift test
+
+      - name: Build
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: scripts/bundle.sh
+
+      - name: Package
+        run: ditto -c -k --sequesterRsrc --keepParent build/Lax.app build/Lax.zip
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(plutil -extract CFBundleShortVersionString raw Support/Info.plist)"
+          tag="v${version}-build.${{ github.run_number }}"
+          gh release create "$tag" build/Lax.zip \
+            --target "$GITHUB_SHA" \
+            --title "Lax ${version} (build ${{ github.run_number }})" \
+            --notes "Built from ${GITHUB_SHA::7}. Not notarized yet: see the README for how to open it the first time."

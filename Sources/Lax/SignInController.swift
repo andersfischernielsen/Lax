@@ -1,10 +1,11 @@
+import AppKit
 import LaxKit
 import WebKit
 
 /// Drives Slack's own web sign-in in an embedded web view (so SSO and 2FA work
 /// as they do in a browser), then lifts the session out of it.
 @MainActor @Observable
-final class SignInController: NSObject, Identifiable, WKNavigationDelegate {
+final class SignInController: NSObject, Identifiable, WKNavigationDelegate, WKUIDelegate {
     enum Phase: Equatable {
         case browsing
         case verifying
@@ -29,6 +30,7 @@ final class SignInController: NSObject, Identifiable, WKNavigationDelegate {
         super.init()
 
         webView.navigationDelegate = self
+        webView.uiDelegate = self
         // The web client switches pages without full loads, so watch the URL itself.
         urlObservation = webView.observe(\.url) { [weak self] _, _ in
             MainActor.assumeIsolated { self?.extractIfSignedIn() }
@@ -46,6 +48,30 @@ final class SignInController: NSObject, Identifiable, WKNavigationDelegate {
         // Slack offers to open its desktop app via slack:// links; stay in the web view.
         guard let scheme = action.request.url?.scheme else { return .allow }
         return scheme == "https" || scheme == "http" || scheme == "about" ? .allow : .cancel
+    }
+
+    func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
+                 for action: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        // Slack opens some steps, such as 2FA, in a new tab. Web views drop those
+        // unless handled, so load them here instead.
+        webView.load(action.request)
+        return nil
+    }
+
+    func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String,
+                 initiatedByFrame frame: WKFrameInfo) async {
+        let alert = NSAlert()
+        alert.messageText = message
+        alert.runModal()
+    }
+
+    func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String,
+                 initiatedByFrame frame: WKFrameInfo) async -> Bool {
+        let alert = NSAlert()
+        alert.messageText = message
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Cancel")
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     private func extractIfSignedIn() {

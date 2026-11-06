@@ -10,6 +10,10 @@ struct MessageItem: View {
     let showsHeader: Bool
     /// False inside a thread, where the replies are already on screen.
     var showsThreadLink = true
+    @State private var confirmingDelete = false
+
+    /// Offered under "Add Reaction" in the message menu.
+    private static let quickReactions = ["+1", "heart", "joy", "tada", "eyes", "pray", "white_check_mark", "raised_hands"]
 
     private static let systemSubtypes: Set<String> = [
         "channel_join", "channel_leave", "channel_topic", "channel_purpose", "channel_name",
@@ -46,7 +50,35 @@ struct MessageItem: View {
                 .padding(.top, 2)
             }
         }
+        .contentShape(Rectangle())
+        .contextMenu { menu }
+        .confirmationDialog("Delete this message?", isPresented: $confirmingDelete) {
+            Button("Delete", role: .destructive) { workspace.delete(message, in: channel) }
+        } message: {
+            Text("It's removed for everyone in the conversation.")
+        }
         .onAppear { workspace.requestEmojiImages(customEmojiNames(in: text)) }
+    }
+
+    @ViewBuilder private var menu: some View {
+        Button("Reply in Thread") { workspace.openThread(message.threadTS ?? message.ts, in: channel) }
+        Menu("Add Reaction") {
+            ForEach(Self.quickReactions, id: \.self) { name in
+                let isMine = message.reactions.first { $0.name == name }?.users.contains(workspace.account.userID) ?? false
+                Toggle("\(Emoji.character(for: name) ?? "")  :\(name):", isOn: Binding(
+                    get: { isMine },
+                    set: { _ in workspace.toggleReaction(name, on: message, in: channel) }
+                ))
+            }
+        }
+        Divider()
+        Button("Copy Text") { workspace.copyText(of: message) }
+        Button("Copy Link") { workspace.copyLink(to: message, in: channel) }
+        if message.userID == workspace.account.userID {
+            Divider()
+            Button("Edit…") { workspace.beginEdit(message, in: channel) }
+            Button("Delete…", role: .destructive) { confirmingDelete = true }
+        }
     }
 
     /// Custom emoji in the message, its attachments and its reactions.
@@ -93,9 +125,9 @@ struct MessageRow<Footer: View>: View {
                         if message.isEdited { Text("(edited)").font(.caption).foregroundStyle(.secondary) }
                     }
                 }
+                // No text selection: it would replace the message menu on right-click.
                 text
                     .foregroundStyle(isSystem ? .secondary : .primary)
-                    .textSelection(.enabled)
                 footer
             }
         }

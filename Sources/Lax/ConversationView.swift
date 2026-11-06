@@ -52,6 +52,9 @@ struct ConversationView: View {
                     .inspectorColumnWidth(min: 300, ideal: 380, max: 560)
             }
         }
+        .sheet(item: editing) { _ in
+            EditMessageView(text: editText, save: workspace.saveEdit, cancel: { workspace.editing = nil })
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             workspace.markReadIfVisible()
         }
@@ -60,6 +63,14 @@ struct ConversationView: View {
     private var draft: Binding<String> {
         Binding(get: { workspace.drafts[conversation.id] ?? "" },
                 set: { workspace.drafts[conversation.id] = $0 })
+    }
+
+    private var editing: Binding<MessageEdit?> {
+        Binding(get: { workspace.editing }, set: { workspace.editing = $0 })
+    }
+
+    private var editText: Binding<String> {
+        Binding(get: { workspace.editing?.text ?? "" }, set: { workspace.editing?.text = $0 })
     }
 
     private var threadIsOpen: Binding<Bool> {

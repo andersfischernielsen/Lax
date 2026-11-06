@@ -65,8 +65,7 @@ struct SidebarView: View {
                 Button("Sign Out of \(account.teamName)…", role: .destructive) { signingOut = account }
             }
         } label: {
-            Label(workspace?.account.teamName ?? "Workspaces", systemImage: "building.2")
-                .labelStyle(.titleAndIcon)
+            Text(workspace?.account.teamName ?? "Workspaces")
         }
     }
 }

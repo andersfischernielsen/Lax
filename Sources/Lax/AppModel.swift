@@ -21,17 +21,19 @@ final class AppModel {
         didSet { UserDefaults.standard.set(dockDot.rawValue, forKey: "dockDot") }
     }
 
-    /// Any workspace has something worth a look; drives the Dock icon's dot.
-    var needsAttention: Bool {
-        workspaces.values.contains {
-            $0.unread.needsAttention(muted: $0.muted, mentionsOnly: dockDot == .mentions)
-        }
+    /// The Dock badge across all workspaces: the mention count, or a dot for other unreads.
+    var dockBadge: String? {
+        let all = workspaces.values
+        return DockBadge.label(
+            mentions: all.reduce(0) { $0 + $1.unread.totalMentions + $1.threadsUnread.mentions },
+            hasOtherUnreads: all.contains { $0.unread.needsAttention(muted: $0.muted) || $0.threadsUnread.hasUnreads },
+            mentionsOnly: dockDot == .mentions)
     }
 
-    /// Keeps the Dock dot current, with or without windows open.
+    /// Keeps the Dock badge current, with or without windows open.
     func showAttentionInDock() {
         NSApplication.shared.dockTile.badgeLabel = withObservationTracking {
-            needsAttention ? "•" : nil
+            dockBadge
         } onChange: { [weak self] in
             Task { @MainActor in self?.showAttentionInDock() }
         }

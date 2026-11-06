@@ -24,12 +24,12 @@ private struct GeneralSettings: View {
 
     var body: some View {
         Form {
-            Picker("Dock icon dot:", selection: $model.dockDot) {
+            Picker("Dock icon badge:", selection: $model.dockDot) {
                 Text("Unread messages").tag(AppModel.DockDot.unread)
                 Text("Mentions and direct messages").tag(AppModel.DockDot.mentions)
             }
             .pickerStyle(.radioGroup)
-            Text("Muted conversations only show the dot when someone mentions you.")
+            Text("Mentions and direct messages show a count; other unread messages a dot. Muted conversations count only when someone mentions you.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
         }

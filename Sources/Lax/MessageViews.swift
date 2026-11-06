@@ -241,12 +241,17 @@ struct ComposerView<Status: View>: View {
     var suggest: (Autocomplete.Token) -> [Suggestion] = { _ in [] }
     /// Told about each completion taken, e.g. to send mentions as tokens.
     var accept: (Suggestion) -> Void = { _ in }
+    /// Files to send with the message; none can be attached unless given.
+    var uploads: Binding<[Upload]>?
+    var isUploading = false
     @ViewBuilder var status: Status
     let send: () -> Void
     @State private var selection = AttributedTextSelection()
     @State private var highlighted = 0
     /// The word whose suggestions were dismissed with Esc.
     @State private var dismissed: Autocomplete.Token?
+    @State private var isImporting = false
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         let plain = String(draft.characters)
@@ -258,66 +263,91 @@ struct ComposerView<Status: View>: View {
             if !suggestions.isEmpty, let token {
                 SuggestionList(suggestions: suggestions, highlighted: highlighted) { take($0, for: token) }
             }
-            // The field is as tall as its text: one line to start, growing to six, then scrolling.
-            // The hidden copy sets the height (TextEditor alone fills any space it's offered),
-            // wrapping like the editor, which pads its lines by AppKit's standard 5 points.
-            Text(plain.isEmpty ? " " : plain + " ")
-                .lineLimit(1...6)
-                .padding(.horizontal, 5)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .hidden()
-                .overlay(alignment: .topLeading) {
-                    if plain.isEmpty {
-                        Text(placeholder).foregroundStyle(.placeholder).padding(.leading, 5).allowsHitTesting(false)
+            VStack(alignment: .leading, spacing: 8) {
+                if let uploads, !uploads.wrappedValue.isEmpty {
+                    UploadStrip(uploads: uploads, isUploading: isUploading)
+                }
+                HStack(alignment: .lastTextBaseline, spacing: 6) {
+                    if uploads != nil {
+                        Button("Attach Files", systemImage: "paperclip") { isImporting = true }
+                            .labelStyle(.iconOnly)
+                            .buttonStyle(.borderless)
+                            .keyboardShortcut(isFocused ? Shortcuts.attachFiles : nil)
+                            .help("Attach files")
                     }
-                }
-                .overlay {
-                    TextEditor(text: $draft, selection: $selection)
-                        .textEditorStyle(.plain)
-                        .scrollContentBackground(.hidden)
-                        .accessibilityIdentifier(identifier)
-                        // Return sends; Shift- and Option-Return fall through to a new line.
-                        .onKeyPress(keys: [.return]) { press in
-                            guard press.modifiers.isDisjoint(with: [.shift, .option]) else { return .ignored }
-                            if let token, suggestions.indices.contains(highlighted) {
-                                take(suggestions[highlighted], for: token)
-                            } else {
-                                send()
+                    // The field is as tall as its text: one line to start, growing to six, then scrolling.
+                    // The hidden copy sets the height (TextEditor alone fills any space it's offered),
+                    // wrapping like the editor, which pads its lines by AppKit's standard 5 points.
+                    Text(plain.isEmpty ? " " : plain + " ")
+                        .lineLimit(1...6)
+                        .padding(.horizontal, 5)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .hidden()
+                        .overlay(alignment: .topLeading) {
+                            if plain.isEmpty {
+                                Text(placeholder).foregroundStyle(.placeholder).padding(.leading, 5).allowsHitTesting(
+                                    false)
                             }
-                            return .handled
                         }
-                        .onKeyPress(.tab) {
-                            guard let token, suggestions.indices.contains(highlighted) else { return .ignored }
-                            take(suggestions[highlighted], for: token)
-                            return .handled
-                        }
-                        .onKeyPress(.downArrow) {
-                            guard !suggestions.isEmpty else { return .ignored }
-                            highlighted = min(highlighted + 1, suggestions.count - 1)
-                            return .handled
-                        }
-                        .onKeyPress(.upArrow) {
-                            guard !suggestions.isEmpty else { return .ignored }
-                            highlighted = max(highlighted - 1, 0)
-                            return .handled
-                        }
-                        .onKeyPress(.escape) {
-                            guard !suggestions.isEmpty else { return .ignored }
-                            dismissed = token
-                            return .handled
-                        }
-                        .onKeyPress(keys: ["b", "i", "x", "c"]) { press in
-                            guard let style = Self.style(for: press) else { return .ignored }
-                            toggle(style)
-                            return .handled
+                        .overlay {
+                            TextEditor(text: $draft, selection: $selection)
+                                .textEditorStyle(.plain)
+                                .scrollContentBackground(.hidden)
+                                .focused($isFocused)
+                                .accessibilityIdentifier(identifier)
+                                // Return sends; Shift- and Option-Return fall through to a new line.
+                                .onKeyPress(keys: [.return]) { press in
+                                    guard press.modifiers.isDisjoint(with: [.shift, .option]) else { return .ignored }
+                                    if let token, suggestions.indices.contains(highlighted) {
+                                        take(suggestions[highlighted], for: token)
+                                    } else {
+                                        send()
+                                    }
+                                    return .handled
+                                }
+                                .onKeyPress(.tab) {
+                                    guard let token, suggestions.indices.contains(highlighted) else { return .ignored }
+                                    take(suggestions[highlighted], for: token)
+                                    return .handled
+                                }
+                                .onKeyPress(.downArrow) {
+                                    guard !suggestions.isEmpty else { return .ignored }
+                                    highlighted = min(highlighted + 1, suggestions.count - 1)
+                                    return .handled
+                                }
+                                .onKeyPress(.upArrow) {
+                                    guard !suggestions.isEmpty else { return .ignored }
+                                    highlighted = max(highlighted - 1, 0)
+                                    return .handled
+                                }
+                                .onKeyPress(.escape) {
+                                    guard !suggestions.isEmpty else { return .ignored }
+                                    dismissed = token
+                                    return .handled
+                                }
+                                .onKeyPress(keys: ["b", "i", "x", "c"]) { press in
+                                    guard let style = Self.style(for: press) else { return .ignored }
+                                    toggle(style)
+                                    return .handled
+                                }
                         }
                 }
-                .padding(10)
-                .background(RoundedRectangle(cornerRadius: 8).strokeBorder(.separator))
-                .onChange(of: draft) { highlighted = 0 }
+            }
+            .padding(10)
+            .background(RoundedRectangle(cornerRadius: 8).strokeBorder(.separator))
+            .onChange(of: draft) { highlighted = 0 }
+            .background(FilePaste(isActive: isFocused && uploads != nil, attach: attach))
+            .fileImporter(isPresented: $isImporting, allowedContentTypes: [.data], allowsMultipleSelection: true) {
+                result in
+                if case .success(let urls) = result { attach(urls.compactMap(Upload.init(fileAt:))) }
+            }
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 12)
+    }
+
+    private func attach(_ files: [Upload]) {
+        uploads?.wrappedValue = (uploads?.wrappedValue ?? []).adding(files)
     }
 
     /// ⌘B, ⌘I, ⇧⌘X and ⇧⌘C, as in Slack.

@@ -152,13 +152,15 @@ struct ConversationView: View {
             ComposerView(
                 placeholder: "Message \(workspace.displayName(of: conversation))", draft: draft,
                 suggest: { workspace.suggestions(for: $0) },
-                accept: { workspace.remember($0, inDraft: conversation.id) }
+                accept: { workspace.remember($0, inDraft: conversation.id) },
+                uploads: uploads(conversation.id), isUploading: workspace.uploading[conversation.id] ?? false
             ) {
                 TypingIndicator(workspace: workspace, channel: conversation.id)
             } send: {
                 workspace.send(in: conversation.id)
             }
         }
+        .attachingDroppedFiles { workspace.attach($0, to: conversation.id) }
         .navigationTitle(workspace.displayName(of: conversation))
         .navigationSubtitle(conversation.topic ?? "")
         .sheet(item: $window.reactingTo) { target in
@@ -188,6 +190,10 @@ struct ConversationView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             workspace.markReadIfVisible()
         }
+    }
+
+    private func uploads(_ key: String) -> Binding<[Upload]> {
+        Binding(get: { workspace.uploads[key] ?? [] }, set: { workspace.uploads[key] = $0 })
     }
 
     private var draft: Binding<AttributedString> {

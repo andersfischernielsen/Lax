@@ -13,6 +13,9 @@ enum Shortcuts {
     static let edit = KeyboardShortcut("e", modifiers: [.command, .option])
     static let delete = KeyboardShortcut(.delete, modifiers: .command)
 
+    /// In the composer, as in Slack.
+    static let attachFiles = KeyboardShortcut("u", modifiers: .command)
+
     static let markConversationRead = KeyboardShortcut("r", modifiers: [.command, .shift])
     static let mute = KeyboardShortcut("m", modifiers: [.command, .shift])
 }

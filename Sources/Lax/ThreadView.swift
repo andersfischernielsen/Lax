@@ -54,13 +54,20 @@ struct ThreadView: View {
                 placeholder: "Reply…", identifier: "thread-composer", draft: draft,
                 suggest: { workspace.suggestions(for: $0) },
                 accept: { workspace.remember($0, inDraft: thread.draftKey) },
+                uploads: uploads,
+                isUploading: workspace.uploading[thread.draftKey] ?? false,
                 status: { EmptyView() }
             ) {
                 workspace.send(in: thread.channel, thread: thread.ts)
             }
         }
+        .attachingDroppedFiles { workspace.attach($0, to: thread.draftKey) }
         .accessibilityIdentifier("thread-view")
         .task { await workspace.loadThread(thread) }
+    }
+
+    private var uploads: Binding<[Upload]> {
+        Binding(get: { workspace.uploads[thread.draftKey] ?? [] }, set: { workspace.uploads[thread.draftKey] = $0 })
     }
 
     private var draft: Binding<AttributedString> {

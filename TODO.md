@@ -36,6 +36,7 @@
 - [ ] Search: results open the conversation (or thread), but don't scroll to the message
 - [x] Pinned messages
 - [ ] Slash commands and bot buttons
+- [ ] Mark as unread: from the message menu (moves the read position back) and the sidebar
 - [x] App icon
 - [ ] Mention autocomplete (@person, #channel) in the composer
 - [ ] Emoji autocomplete: typing `:` suggests shortcodes, standard and custom

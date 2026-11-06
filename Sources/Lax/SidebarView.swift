@@ -60,12 +60,26 @@ private struct ConversationList: View {
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         return Section(title) {
             ForEach(items, id: \.conversation.id) { item in
-                let counts = workspace.unread[item.conversation.id]
-                Label(item.name.trimmingPrefix("#"), systemImage: icon(for: item.conversation.kind))
-                    .lineLimit(1)
-                    .fontWeight(counts.hasUnreads ? .semibold : .regular)
-                    .foregroundStyle(counts.hasUnreads ? .primary : .secondary)
-                    .badge(counts.mentions)
+                let id = item.conversation.id
+                let counts = workspace.unread[id]
+                let isMuted = workspace.muted.contains(id)
+                // Muted conversations only stand out when someone mentions the user.
+                let isHighlighted = counts.hasUnreads && !isMuted
+                Label {
+                    HStack(spacing: 4) {
+                        Text(item.name.trimmingPrefix("#")).lineLimit(1)
+                        if isMuted { Image(systemName: "bell.slash").font(.caption2) }
+                    }
+                } icon: {
+                    Image(systemName: icon(for: item.conversation.kind))
+                }
+                .fontWeight(isHighlighted ? .semibold : .regular)
+                .foregroundStyle(isHighlighted ? AnyShapeStyle(.primary)
+                                 : isMuted ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
+                .badge(counts.mentions)
+                .contextMenu {
+                    Button(isMuted ? "Unmute" : "Mute") { workspace.setMuted(!isMuted, id) }
+                }
             }
         }
     }

@@ -12,6 +12,8 @@ final class WorkspaceModel: Identifiable {
     private(set) var timelines: [String: Timeline] = [:]
     private(set) var typing = TypingTracker()
     private(set) var unread = UnreadState()
+    /// Muted conversations, derived from `mutePrefs`.
+    private(set) var muted: Set<String> = []
     private(set) var status: RealTimeUpdate.Status = .connecting
     private(set) var loadingHistory: Set<String> = []
     private(set) var selectedConversationID: SlackConversation.ID?
@@ -29,6 +31,7 @@ final class WorkspaceModel: Identifiable {
     @ObservationIgnored private var readPositionKnown: Set<String> = []
     @ObservationIgnored private var markedReadTS: [String: String] = [:]
     @ObservationIgnored private let images = NSCache<NSURL, NSImage>()
+    @ObservationIgnored private var mutePrefs = MutePrefs()
 
     nonisolated var id: SlackAccount.ID { account.id }
 
@@ -49,6 +52,7 @@ final class WorkspaceModel: Identifiable {
             Task { await loadConversations() },
             Task { await loadUserGroups() },
             Task { await loadUnreadCounts() },
+            Task { await loadMutePrefs() },
             Task { await listen() },
         ]
     }
@@ -141,6 +145,26 @@ final class WorkspaceModel: Identifiable {
             requestUsers(Set(conversations.compactMap(\.userID)))
         } catch {
             errorMessage = "Couldn't load conversations (\(error))."
+        }
+    }
+
+    private func loadMutePrefs() async {
+        guard let prefs = try? await client.mutePrefs() else { return }
+        mutePrefs = prefs
+        muted = prefs.muted
+    }
+
+    /// Mutes or unmutes at once; Slack echoes the change as a `pref_change`.
+    func setMuted(_ isMuted: Bool, _ channel: String) {
+        let before = muted
+        if isMuted { muted.insert(channel) } else { muted.remove(channel) }
+        Task {
+            do {
+                try await client.setMuted(isMuted, channel: channel)
+            } catch {
+                muted = before
+                errorMessage = "Couldn't change notifications for the channel (\(error))."
+            }
         }
     }
 
@@ -268,6 +292,9 @@ final class WorkspaceModel: Identifiable {
             markReadIfVisible(channel)
         case .reaction(let channel, let ts, let name, let user, let added):
             update(channel) { $0.react(name, by: user, added: added, to: ts) }
+        case .prefChange(let name, let value):
+            mutePrefs.apply(prefChange: name, value: value)
+            muted = mutePrefs.muted
         case .marked(let channel, let unreadCount, let mentionCount):
             unread.marked(channel, unreadCount: unreadCount, mentionCount: mentionCount)
         case .messageChanged(let channel, let message):

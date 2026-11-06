@@ -66,27 +66,38 @@ private struct ConversationList: View {
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         return Section(title) {
             ForEach(items, id: \.conversation.id) { item in
-                let id = item.conversation.id
-                let counts = workspace.unread[id]
-                let isMuted = workspace.muted.contains(id)
-                // Muted conversations only stand out when someone mentions the user.
-                let isHighlighted = counts.hasUnreads && !isMuted
-                Label {
-                    HStack(spacing: 4) {
-                        Text(item.name.trimmingPrefix("#")).lineLimit(1)
-                        if isMuted { Image(systemName: "bell.slash").font(.caption2) }
-                    }
-                } icon: {
-                    Image(systemName: icon(for: item.conversation.kind))
-                }
-                .fontWeight(isHighlighted ? .semibold : .regular)
-                .foregroundStyle(isHighlighted ? AnyShapeStyle(.primary)
-                                 : isMuted ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
-                .badge(counts.mentions)
-                .contextMenu {
-                    Button(isMuted ? "Unmute" : "Mute") { workspace.setMuted(!isMuted, id) }
-                }
+                ConversationRow(workspace: workspace, conversation: item.conversation, name: item.name)
             }
+        }
+    }
+}
+
+/// One sidebar entry; reads its own unread and mute state, so a badge change redraws just it.
+private struct ConversationRow: View {
+    let workspace: WorkspaceModel
+    let conversation: SlackConversation
+    let name: String
+
+    var body: some View {
+        let id = conversation.id
+        let counts = workspace.unread[id]
+        let isMuted = workspace.muted.contains(id)
+        // Muted conversations only stand out when someone mentions the user.
+        let isHighlighted = counts.hasUnreads && !isMuted
+        Label {
+            HStack(spacing: 4) {
+                Text(name.trimmingPrefix("#")).lineLimit(1)
+                if isMuted { Image(systemName: "bell.slash").font(.caption2) }
+            }
+        } icon: {
+            Image(systemName: icon(for: conversation.kind))
+        }
+        .fontWeight(isHighlighted ? .semibold : .regular)
+        .foregroundStyle(isHighlighted ? AnyShapeStyle(.primary)
+                         : isMuted ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
+        .badge(counts.mentions)
+        .contextMenu {
+            Button(isMuted ? "Unmute" : "Mute") { workspace.setMuted(!isMuted, id) }
         }
     }
 

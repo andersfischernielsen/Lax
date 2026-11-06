@@ -5,10 +5,14 @@ runs:
   steps:
     - shell: bash
       run: |
-        xcode="$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -n 1)"
+        # Released versions first; a release candidate only if that's all there is.
+        candidates="$(ls -d /Applications/Xcode_27*.app 2>/dev/null || true)"
+        xcode="$(echo "$candidates" | grep -v Release_Candidate | sort -V | tail -n 1 || true)"
+        [ -z "$xcode" ] && xcode="$(echo "$candidates" | sort -V | tail -n 1)"
         if [ -z "$xcode" ]; then
           echo "::error::Lax needs Xcode 27 (the macOS 27 SDK); this runner has: $(ls -d /Applications/Xcode*.app | xargs)"
           exit 1
         fi
         sudo xcode-select --switch "$xcode"
         xcodebuild -version
+        swift --version

@@ -58,15 +58,19 @@ struct ConversationView: View {
                         // Read once its bottom edge has been on screen, i.e. it's been read to the
                         // end; and only after the list has settled where it opens, so rows passed
                         // on the way there don't count.
-                        .overlay(alignment: .bottom) {
-                            Color.clear.frame(height: 1).onScrollVisibilityChange(threshold: 1) { visible in
-                                if visible { visibleRows.ids.insert(message.ts) } else { visibleRows.ids.remove(message.ts) }
-                                if visible, isPositioned { workspace.saw(message.ts, in: conversation.id) }
-                            }
+                        // Compared on screen against the list's own frame: visibility callbacks
+                        // judge the whole row, not where its bottom edge is.
+                        .onGeometryChange(for: Bool.self) { [rows = visibleRows] proxy in
+                            let bottom = proxy.frame(in: .global).maxY
+                            return bottom > rows.listFrame.minY && bottom <= rows.listFrame.maxY
+                        } action: { visible in
+                            if visible { visibleRows.ids.insert(message.ts) } else { visibleRows.ids.remove(message.ts) }
+                            if visible, isPositioned { workspace.saw(message.ts, in: conversation.id) }
                         }
                 }
             }
             .listStyle(.plain)
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { visibleRows.listFrame = $0 }
             // Edit ▸ Copy copies the selected message, as in Mail and Messages.
             .onCopyCommand {
                 guard let message = messages.first(where: { $0.ts == window.selectedMessage }) else { return [] }
@@ -199,7 +203,10 @@ extension View {
     }
 }
 
-/// Reference storage a view can change without redrawing.
-final class VisibleRows {
+/// Reference storage a view can change without redrawing. Written on the main actor only;
+/// geometry callbacks, which SwiftUI also runs there, read it.
+final class VisibleRows: @unchecked Sendable {
     var ids: Set<String> = []
+    /// The message list's frame on screen, to tell which bottom edges are inside it.
+    var listFrame = CGRect.zero
 }

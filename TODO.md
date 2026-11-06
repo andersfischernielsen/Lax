@@ -40,8 +40,8 @@
 - [x] App icon
 - [ ] Mention autocomplete (@person, #channel) in the composer
 - [ ] Emoji autocomplete: typing `:` suggests shortcodes, standard and custom
-- [ ] Separate native views for all threads, all DMs and the base channel view
-      (e.g. their own windows or tabs, macOS-style)
+- [x] Separate native views for all threads, all DMs and the base channel view:
+      View ▸ Home / Direct Messages / Threads (⌘1–3), per window or tab
 - [x] View → Show Tab Bar: each window and tab keeps its own conversation
 
 ## Apple quality

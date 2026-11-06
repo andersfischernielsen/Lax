@@ -40,6 +40,21 @@ extension SlackAPIClient {
         let _: Empty = try await call("conversations.mark", ["channel": channel, "ts": ts])
     }
 
+    public func editMessage(_ ts: String, in channel: String, text: String) async throws {
+        let _: Empty = try await call("chat.update", ["channel": channel, "ts": ts, "text": text])
+    }
+
+    public func deleteMessage(_ ts: String, in channel: String) async throws {
+        let _: Empty = try await call("chat.delete", ["channel": channel, "ts": ts])
+    }
+
+    /// A link to the message that opens it in Slack.
+    public func permalink(to ts: String, in channel: String) async throws -> URL {
+        let response: PermalinkResponse = try await call("chat.getPermalink", ["channel": channel, "message_ts": ts])
+        guard let url = URL(string: response.permalink) else { throw SlackAPIError.invalidResponse }
+        return url
+    }
+
     public func react(_ name: String, to ts: String, in channel: String, added: Bool) async throws {
         let _: Empty = try await call(added ? "reactions.add" : "reactions.remove",
                                       ["channel": channel, "timestamp": ts, "name": name])
@@ -124,6 +139,10 @@ private struct HistoryResponse: Decodable {
 }
 
 private struct Empty: Decodable {}
+
+private struct PermalinkResponse: Decodable {
+    let permalink: String
+}
 
 private struct RepliesResponse: Decodable {
     let messages: [SlackMessage]

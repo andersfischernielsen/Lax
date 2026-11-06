@@ -23,6 +23,14 @@ public struct UnreadState: Equatable, Sendable {
         byConversation[conversation] ?? Counts()
     }
 
+    /// Something to look at: unread messages outside muted conversations, or a
+    /// mention anywhere.
+    public func needsAttention(muted: Set<String>) -> Bool {
+        byConversation.contains { id, counts in
+            counts.mentions > 0 || (counts.hasUnreads && !muted.contains(id))
+        }
+    }
+
     /// A new message arrived over the real-time connection.
     public mutating func received(_ message: SlackMessage, in conversation: SlackConversation,
                                   ownUserID: String, isOpen: Bool) {

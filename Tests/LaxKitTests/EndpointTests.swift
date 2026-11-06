@@ -134,6 +134,21 @@ struct EndpointTests {
         #expect(fields["channel_id"] == "C3")
     }
 
+    @Test func editDeleteAndPermalink() async throws {
+        StubURLProtocol.reset([
+            "chat.update": [#"{"ok":true,"channel":"C1","ts":"1.0","text":"fixed"}"#],
+            "chat.delete": [#"{"ok":true,"channel":"C1","ts":"1.0"}"#],
+            "chat.getPermalink": [#"{"ok":true,"permalink":"https://acme.slack.com/archives/C1/p1000"}"#],
+        ])
+        try await client.editMessage("1.0", in: "C1", text: "fixed")
+        try await client.deleteMessage("1.0", in: "C1")
+        #expect(try await client.permalink(to: "1.0", in: "C1").path == "/archives/C1/p1000")
+        let requests = StubURLProtocol.requests
+        #expect(requests[0].formFields["text"] == "fixed")
+        #expect(requests[1].formFields["ts"] == "1.0")
+        #expect(requests[2].formFields["message_ts"] == "1.0")
+    }
+
     @Test func realTimeURLComesFromRTMConnect() async throws {
         StubURLProtocol.reset(["rtm.connect": [#"{"ok":true,"url":"wss://wss-primary.slack.com/websocket/abc"}"#]])
         #expect(try await client.realTimeURL().absoluteString == "wss://wss-primary.slack.com/websocket/abc")

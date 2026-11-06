@@ -38,3 +38,12 @@ private func message(_ text: String, from user: String = "U2", thread: String? =
     state.read("C1")
     #expect(state["C1"] == .init())
 }
+
+@Test func attentionIgnoresMutedUnreadsButNotMentions() {
+    let quiet = UnreadState(["C1": .init(hasUnreads: true, mentions: 0)])
+    #expect(quiet.needsAttention(muted: []))
+    #expect(!quiet.needsAttention(muted: ["C1"]))
+    let mentioned = UnreadState(["C1": .init(hasUnreads: true, mentions: 1)])
+    #expect(mentioned.needsAttention(muted: ["C1"]))
+    #expect(!UnreadState().needsAttention(muted: []))
+}

@@ -126,7 +126,8 @@ private struct FollowedThreadList: View {
                                        description: Text("Threads you reply to or follow show up here."))
             }
         }
-        .task { await workspace.loadFollowedThreads() }
+        // Once; after that the real-time connection keeps the list current.
+        .task { if workspace.followedThreads == nil { await workspace.loadFollowedThreads() } }
     }
 
     /// Opening a thread marks it read.

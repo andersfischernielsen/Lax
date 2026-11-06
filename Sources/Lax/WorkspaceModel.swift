@@ -119,7 +119,11 @@ final class WorkspaceModel: Identifiable {
 
     func hide(_ channel: String) {
         visible[channel, default: 1] -= 1
-        if visible[channel] == 0 { visible[channel] = nil }
+        guard visible[channel] == 0 else { return }
+        visible[channel] = nil
+        // Off screen, keep one page: showing it again then lays out 50 rows, not every
+        // message ever scrolled back to.
+        timelines.update(channel) { $0 = $0.keepingNewest(50) }
     }
 
     /// Marks conversations on screen read up to their newest message, while Lax is in front.

@@ -4,7 +4,9 @@ import Testing
 
 private let text = SlackText(
     userName: { ["U1": "jane"][$0] },
-    channelName: { ["C1": "general"][$0] }
+    channelName: { ["C1": "general"][$0] },
+    subteamHandle: { ["S1": "platform"][$0] },
+    isCustomEmoji: { $0 == "hi-wave" }
 )
 
 private func runs(_ attributed: AttributedString) -> [(String, InlinePresentationIntent?)] {
@@ -14,7 +16,43 @@ private func runs(_ attributed: AttributedString) -> [(String, InlinePresentatio
 @Test func resolvesMentions() {
     #expect(text.plain("hi <@U1>, see <#C1> and <#C9|random>") == "hi @jane, see #general and #random")
     #expect(text.plain("<@U9>") == "@U9")
-    #expect(text.plain("<!here> <!channel> <!subteam^S1|@design>") == "@here @channel @design")
+    #expect(text.plain("<!here> <!channel> <!subteam^S2|@design>") == "@here @channel @design")
+    #expect(text.plain("<!subteam^S1> <!subteam^S9>") == "@platform @group")
+}
+
+@Test func emphasisSpansMentions() {
+    let result = runs(text.attributed("*IMPORTANT <!here>* now"))
+    #expect(result.map(\.0) == ["IMPORTANT @here", " now"])
+    #expect(result.map(\.1) == [.stronglyEmphasized, nil])
+}
+
+@Test func linkInsideEmphasisKeepsBoth() {
+    let attributed = text.attributed("_see <https://x.io|docs>_")
+    let link = attributed.runs.first { $0.link != nil }
+    #expect(link?.inlinePresentationIntent == .emphasized)
+}
+
+@Test func replacesEmojiShortcodes() {
+    #expect(text.plain("ship it :tada: :+1::skin-tone-2: :red_circle::") == "ship it 🎉 👍🏻 🔴:")
+    #expect(text.plain("at 10:30:45") == "at 10:30:45")
+}
+
+@Test func tagsCustomEmojiAndLeavesUnknownNames() {
+    let attributed = text.attributed(":hi-wave: :not-an-emoji:")
+    #expect(String(attributed.characters) == ":hi-wave: :not-an-emoji:")
+    #expect(attributed.runs.compactMap { $0[SlackAttributes.CustomEmoji.self] } == ["hi-wave"])
+}
+
+@Test func codeKeepsShortcodes() {
+    #expect(text.plain("`:tada:`") == ":tada:")
+}
+
+@Test func marksQuoteLines() {
+    let attributed = text.attributed("intro\n&gt; quoted *bold*\nafter")
+    #expect(String(attributed.characters) == "intro\nquoted bold\nafter")
+    let quoted = attributed.runs.filter { $0[SlackAttributes.Quote.self] == true }
+        .map { String(attributed[$0.range].characters) }.joined()
+    #expect(quoted == "quoted bold")
 }
 
 @Test func mentionsAreBold() {

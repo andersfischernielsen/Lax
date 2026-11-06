@@ -200,9 +200,11 @@ final class WorkspaceModel: Identifiable {
     /// Moves the read position to just before `ts`, so it and everything after it are unread.
     func markUnread(from ts: String, in channel: String) {
         guard let position = SlackTimestamp.justBefore(ts) else { return }
-        // Counts as already marked, so being on screen doesn't read it again at once;
-        // the next new message does.
-        markedReadTS[channel] = timelines[channel]?.newestTS ?? latestActivity[channel] ?? ts
+        // Read and seen both go back to just before it. It stays unread while on screen,
+        // since only rows coming into view count; scrolled away and back, it's read again.
+        markReadTasks[channel]?.cancel()
+        markedReadTS[channel] = position
+        seenTS[channel] = position
         unreadMarkers[channel] = position
         unread.marked(channel, unreadCount: 1, mentionCount: unread[channel].mentions)
         Task {

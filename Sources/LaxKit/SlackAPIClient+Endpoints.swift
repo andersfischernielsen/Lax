@@ -1,0 +1,91 @@
+import Foundation
+
+public struct HistoryPage: Sendable {
+    /// Newest first, as Slack returns them.
+    public let messages: [SlackMessage]
+    public let hasMore: Bool
+}
+
+extension SlackAPIClient {
+    /// Every open conversation the user belongs to: channels, private channels, DMs and group DMs.
+    public func conversations() async throws -> [SlackConversation] {
+        var all: [SlackConversation] = []
+        var cursor: String?
+        repeat {
+            var params = ["types": "public_channel,private_channel,mpim,im", "exclude_archived": "true", "limit": "200"]
+            params["cursor"] = cursor
+            let page: ConversationsPage = try await call("users.conversations", params)
+            all += page.channels
+            cursor = page.responseMetadata?.nextCursor?.nilIfEmpty
+        } while cursor != nil
+        return all
+    }
+
+    /// Up to `limit` messages before `latest` (a message `ts`), or the newest ones.
+    public func history(channel: String, limit: Int = 50, before latest: String? = nil) async throws -> HistoryPage {
+        var params = ["channel": channel, "limit": String(limit)]
+        params["latest"] = latest
+        let response: HistoryResponse = try await call("conversations.history", params)
+        return HistoryPage(messages: response.messages, hasMore: response.hasMore ?? false)
+    }
+
+    public func user(id: String) async throws -> SlackUser {
+        let response: UserResponse = try await call("users.info", ["user": id])
+        return response.user
+    }
+
+    @discardableResult
+    public func postMessage(channel: String, text: String, threadTS: String? = nil) async throws -> SlackMessage {
+        var params = ["channel": channel, "text": text]
+        params["thread_ts"] = threadTS
+        let response: PostMessageResponse = try await call("chat.postMessage", params)
+        return response.message
+    }
+
+    /// WebSocket URL for real-time events.
+    public func realTimeURL() async throws -> URL {
+        let response: RTMConnectResponse = try await call("rtm.connect")
+        guard let url = URL(string: response.url) else { throw SlackAPIError.invalidResponse }
+        return url
+    }
+}
+
+private struct ResponseMetadata: Decodable {
+    let nextCursor: String?
+
+    enum CodingKeys: String, CodingKey {
+        case nextCursor = "next_cursor"
+    }
+}
+
+private struct ConversationsPage: Decodable {
+    let channels: [SlackConversation]
+    let responseMetadata: ResponseMetadata?
+
+    enum CodingKeys: String, CodingKey {
+        case channels
+        case responseMetadata = "response_metadata"
+    }
+}
+
+private struct HistoryResponse: Decodable {
+    let messages: [SlackMessage]
+    let hasMore: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case messages
+        case hasMore = "has_more"
+    }
+}
+
+private struct UserResponse: Decodable {
+    let user: SlackUser
+}
+
+private struct PostMessageResponse: Decodable {
+    let message: SlackMessage
+}
+
+private struct RTMConnectResponse: Decodable {
+    let url: String
+}

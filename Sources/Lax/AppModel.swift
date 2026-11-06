@@ -1,3 +1,4 @@
+import AppKit
 import LaxKit
 import Observation
 
@@ -10,9 +11,30 @@ final class AppModel {
 
     @ObservationIgnored private let store = CredentialStore()
 
-    /// Any workspace has something unread worth a look; drives the Dock icon's dot.
+    /// What the dot on the Dock icon stands for.
+    enum DockDot: String, CaseIterable {
+        case unread
+        case mentions
+    }
+
+    var dockDot = DockDot(rawValue: UserDefaults.standard.string(forKey: "dockDot") ?? "") ?? .unread {
+        didSet { UserDefaults.standard.set(dockDot.rawValue, forKey: "dockDot") }
+    }
+
+    /// Any workspace has something worth a look; drives the Dock icon's dot.
     var needsAttention: Bool {
-        workspaces.values.contains { $0.unread.needsAttention(muted: $0.muted) }
+        workspaces.values.contains {
+            $0.unread.needsAttention(muted: $0.muted, mentionsOnly: dockDot == .mentions)
+        }
+    }
+
+    /// Keeps the Dock dot current, with or without windows open.
+    func showAttentionInDock() {
+        NSApplication.shared.dockTile.badgeLabel = withObservationTracking {
+            needsAttention ? "•" : nil
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.showAttentionInDock() }
+        }
     }
 
     /// The workspace for `id`, or the first one when `id` is unknown.

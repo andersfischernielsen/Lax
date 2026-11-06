@@ -14,20 +14,21 @@ struct LaxApp: App {
         }
         let model = AppModel()
         model.load()
+        model.showAttentionInDock()
         _model = State(initialValue: model)
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView(model: model)
-                // A dot on the Dock icon instead of notifications.
-                .onChange(of: model.needsAttention, initial: true) { _, needsAttention in
-                    NSApplication.shared.dockTile.badgeLabel = needsAttention ? "•" : nil
-                }
         }
         .commands {
             WorkspaceCommands(model: model)
             InspectorCommands()
+        }
+
+        Settings {
+            SettingsView(model: model)
         }
     }
 }

@@ -5,6 +5,7 @@ import SwiftUI
 @main
 struct LaxApp: App {
     @State private var model: AppModel
+    @NSApplicationDelegateAdaptor private var delegate: AppDelegate
 
     init() {
         // Unbundled (`swift run`), macOS treats the process as a background tool:
@@ -112,5 +113,23 @@ private struct GoCommands: Commands {
                                                            direction: direction, isUnread: workspace.isUnread)
         else { return NSSound.beep() }
         window.select(next)
+    }
+}
+
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// Opens a window when Lax launches without one. A session that ended with every window
+    /// closed restores as no windows, and that wins over `.defaultLaunchBehavior(.presented)`.
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Once SwiftUI has restored or opened its windows.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            MainActor.assumeIsolated {
+                let app = NSApplication.shared
+                guard !app.windows.contains(where: { $0.isVisible && $0.canBecomeMain }),
+                      let newWindow = app.mainMenu?.items.compactMap(\.submenu).flatMap(\.items)
+                        .first(where: { $0.keyEquivalent == "n" && $0.keyEquivalentModifierMask == .command }),
+                      let action = newWindow.action else { return }
+                app.sendAction(action, to: newWindow.target, from: newWindow)
+            }
+        }
     }
 }

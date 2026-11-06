@@ -58,7 +58,7 @@
 
 - [x] Shift-Return and Option-Return don't start a new line in the composer
 - [ ] Icons flicker when the window is closed (Lax still running) and reopened from the Dock
-- [ ] No window at launch when the previous session ended with every window closed
+- [x] No window at launch when the previous session ended with every window closed
       (restored state wins over `.defaultLaunchBehavior(.presented)`); the Dock icon opens one
 - [ ] Every rebuild asks for Keychain access again: builds are signed ad hoc, so each one is a
       new identity to the Keychain. A stable signing certificate would fix it

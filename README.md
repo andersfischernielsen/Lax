@@ -7,11 +7,11 @@ A native macOS Slack client. Targets macOS 27 or later.
 
 ## Build
 
-Needs Swift 6.4 (the Command Line Tools are enough).
+Needs Xcode 27 (the Command Line Tools lack SwiftUI's macro plugin).
 
 ```sh
 swift build          # debug build
-scripts/test.sh      # run tests (wraps `swift test`, see the script)
+swift test           # run tests
 swift run Lax        # run the app without bundling
 scripts/bundle.sh    # release build, wrapped as build/Lax.app
 ```

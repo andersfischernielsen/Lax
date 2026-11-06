@@ -26,6 +26,8 @@ final class WorkspaceModel: Identifiable {
     private(set) var openThread: ThreadRef?
     private(set) var threads: [ThreadRef: Timeline] = [:]
     var drafts: [String: String] = [:]
+    /// A message being edited, shown in a sheet.
+    var editing: MessageEdit?
     var errorMessage: String?
 
     @ObservationIgnored private let client: SlackAPIClient
@@ -241,11 +243,61 @@ final class WorkspaceModel: Identifiable {
         drafts[key] = ""
         Task {
             do {
-                let message = try await client.postMessage(channel: channel, text: text, threadTS: thread)
+                let message = try await client.postMessage(channel: channel, text: SlackText.encodedForSending(text),
+                                                            threadTS: thread)
                 update(channel) { _ = $0.upsert(message) }
             } catch {
                 drafts[key] = text
                 errorMessage = "Couldn't send the message (\(error))."
+            }
+        }
+    }
+
+    // MARK: - Message actions
+
+    func beginEdit(_ message: SlackMessage, in channel: String) {
+        editing = MessageEdit(channel: channel, ts: message.ts, text: SlackText.editable(message.text))
+    }
+
+    func saveEdit() {
+        guard let edit = editing else { return }
+        editing = nil
+        let text = edit.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        Task {
+            do {
+                // The real-time connection delivers the updated message.
+                try await client.editMessage(edit.ts, in: edit.channel, text: SlackText.encodedForSending(text))
+            } catch {
+                errorMessage = "Couldn't edit the message (\(error))."
+            }
+        }
+    }
+
+    func delete(_ message: SlackMessage, in channel: String) {
+        Task {
+            do {
+                try await client.deleteMessage(message.ts, in: channel)
+                update(channel) { $0.remove(ts: message.ts) }
+            } catch {
+                errorMessage = "Couldn't delete the message (\(error))."
+            }
+        }
+    }
+
+    func copyText(of message: SlackMessage) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(textFormatter().plain(message.markup), forType: .string)
+    }
+
+    func copyLink(to message: SlackMessage, in channel: String) {
+        Task {
+            do {
+                let link = try await client.permalink(to: message.ts, in: channel)
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(link.absoluteString, forType: .string)
+            } catch {
+                errorMessage = "Couldn't get a link to the message (\(error))."
             }
         }
     }
@@ -358,4 +410,12 @@ struct ThreadRef: Hashable {
 
     /// Where the thread's unsent reply lives in `drafts`.
     var draftKey: String { "\(channel)/\(ts)" }
+}
+
+struct MessageEdit: Identifiable {
+    let channel: String
+    let ts: String
+    var text: String
+
+    var id: String { "\(channel)/\(ts)" }
 }

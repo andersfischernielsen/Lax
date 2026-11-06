@@ -138,7 +138,8 @@ struct MessageRow<Footer: View>: View {
                     }
                     .accessibilityElement(children: .combine)
                 }
-                // No text selection: it would replace the message menu on right-click.
+                // Not selectable: selectable text brings its own right-click menu, which would
+                // hide the message menu. ⌘C copies the selected message instead.
                 text
                     .foregroundStyle(isSystem ? .secondary : .primary)
                 footer

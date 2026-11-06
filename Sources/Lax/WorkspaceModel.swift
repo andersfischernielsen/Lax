@@ -408,9 +408,14 @@ final class WorkspaceModel: Identifiable {
         }
     }
 
+    /// The message as plain text, mentions and emoji resolved, for copying.
+    func plainText(of message: SlackMessage) -> String {
+        textFormatter().plain(message.markup)
+    }
+
     func copyText(of message: SlackMessage) {
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(textFormatter().plain(message.markup), forType: .string)
+        NSPasteboard.general.setString(plainText(of: message), forType: .string)
     }
 
     func copyLink(to message: SlackMessage, in channel: String) {

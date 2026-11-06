@@ -45,6 +45,11 @@ struct ConversationView: View {
                 }
             }
             .listStyle(.plain)
+            // Edit ▸ Copy copies the selected message, as in Mail and Messages.
+            .onCopyCommand {
+                guard let message = messages.first(where: { $0.ts == window.selectedMessage }) else { return [] }
+                return [NSItemProvider(object: workspace.plainText(of: message) as NSString)]
+            }
             .overlay { if timeline == nil { ProgressView() } }
             .onScrollGeometryChange(for: Bool.self) { geometry in
                 geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height - 60

@@ -14,8 +14,8 @@
 - [ ] Animated emoji: custom emoji show, but GIFs only show their first frame
 - [ ] Animated images and videos
 - [x] Unread message marker line
-- [ ] "User is typing" indicators (Slack): showing others is done; sending our own isn't
-- [ ] Set own nickname (Slack)
+- [x] "User is typing" indicators (Slack)
+- [x] Set own nickname (Slack): display name, from the workspace menu
 - [ ] @role (Discord) or @subteam (Slack) mentions: shown in messages; no autocomplete when writing
 - [ ] Video calls and screen sharing (huddles) — last
 
@@ -23,7 +23,7 @@
 - [ ] Passkey 2FA at sign-in. macOS doesn't allow passkeys in an embedded web view
       for apps that aren't browsers, so this needs sign-in through the system browser.
 - [x] Threads
-- [ ] Reactions: shown and toggled, common ones addable from the message menu; no full picker
+- [x] Reactions, with a picker for standard and custom emoji
 - [x] Images and file attachments
 - [x] Bot messages: Block Kit blocks and legacy attachments
 - [x] Edit and delete own messages
@@ -32,8 +32,9 @@
 - [x] Muted channels
 - [x] Unread dot on the Dock icon (no Notification Center notifications, by choice)
 - [x] Custom emoji and `:shortcodes:`
-- [ ] Group DM names (handles show instead of real names)
-- [ ] Search
-- [ ] Pinned messages
+- [x] Group DM names
+- [ ] Search: results open the conversation (or thread), but don't scroll to the message
+- [x] Pinned messages
 - [ ] Slash commands and bot buttons
-- [ ] App icon
+- [x] App icon
+- [ ] Mention autocomplete (@person, #channel) in the composer

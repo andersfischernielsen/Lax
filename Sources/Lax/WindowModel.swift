@@ -8,7 +8,12 @@ final class WindowModel {
     var conversationID: SlackConversation.ID?
     /// The thread in the inspector; the inspector can be open without one.
     var thread: ThreadRef?
-    var showsInspector = false
+    var showsInspector = false {
+        // The highlight stands for what the inspector shows; hidden, nothing is shown.
+        didSet { if !showsInspector { selectedMessage = nil } }
+    }
+    /// `ts` of the message highlighted in the conversation.
+    var selectedMessage: String?
     var searchQuery = ""
     /// Results of the last search; nil when not searching.
     var searchResults: [SearchResult]?
@@ -31,11 +36,13 @@ final class WindowModel {
     func select(_ conversation: SlackConversation.ID?) {
         guard conversation != conversationID else { return }
         conversationID = conversation
+        selectedMessage = nil
         if thread?.channel != conversation { thread = nil }
     }
 
     func openThread(_ ts: String, in channel: String) {
         thread = ThreadRef(channel: channel, ts: ts)
+        selectedMessage = ts
         showsInspector = true
     }
 

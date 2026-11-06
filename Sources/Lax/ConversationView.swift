@@ -5,6 +5,7 @@ import SwiftUI
 struct ConversationView: View {
     let workspace: WorkspaceModel
     let conversation: SlackConversation
+    @State private var showsPinned = false
 
     var body: some View {
         let formatter = workspace.textFormatter()
@@ -51,6 +52,12 @@ struct ConversationView: View {
                     .id(thread)
                     .inspectorColumnWidth(min: 300, ideal: 380, max: 560)
             }
+        }
+        .toolbar {
+            Button("Pinned Messages", systemImage: "pin") { showsPinned.toggle() }
+                .popover(isPresented: $showsPinned) {
+                    PinnedView(workspace: workspace, channel: conversation.id)
+                }
         }
         .sheet(item: editing) { _ in
             EditMessageView(text: editText, save: workspace.saveEdit, cancel: { workspace.editing = nil })

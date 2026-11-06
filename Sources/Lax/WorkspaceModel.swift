@@ -28,6 +28,8 @@ final class WorkspaceModel: Identifiable {
     private(set) var openThread: ThreadRef?
     private(set) var threads: [ThreadRef: Timeline] = [:]
     var drafts: [String: String] = [:]
+    /// Pinned messages per conversation, loaded when asked for.
+    private(set) var pinned: [String: [SlackMessage]] = [:]
     /// A message being edited, shown in a sheet.
     var editing: MessageEdit?
     var errorMessage: String?
@@ -284,6 +286,18 @@ final class WorkspaceModel: Identifiable {
         guard typingThrottle.shouldSend(in: channel) else { return }
         let connection = connection
         Task { await connection.sendTyping(in: channel) }
+    }
+
+    func loadPinned(in channel: String) {
+        Task {
+            do {
+                let messages = try await client.pinnedMessages(in: channel)
+                pinned[channel] = messages
+                requestNames(for: messages)
+            } catch {
+                errorMessage = "Couldn't load pinned messages (\(error))."
+            }
+        }
     }
 
     // MARK: - Message actions

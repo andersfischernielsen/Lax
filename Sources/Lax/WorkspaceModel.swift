@@ -9,6 +9,8 @@ final class WorkspaceModel: Identifiable {
     private(set) var conversations: [SlackConversation] = []
     private(set) var users: [String: SlackUser] = [:]
     private(set) var userGroupHandles: [String: String] = [:]
+    /// Members of group DMs, for naming them.
+    private(set) var groupMembers: [String: [String]] = [:]
     private(set) var customEmoji: [String: SlackEmoji] = [:]
     /// Custom emoji images by name, sized for inline text.
     private(set) var emojiImages: [String: NSImage] = [:]
@@ -106,7 +108,8 @@ final class WorkspaceModel: Identifiable {
     }
 
     func displayName(of conversation: SlackConversation) -> String {
-        conversation.displayName(userName: userName)
+        conversation.displayName(userName: userName, members: groupMembers[conversation.id],
+                                 ownUserID: account.userID)
     }
 
     func authorName(of message: SlackMessage) -> String {
@@ -151,9 +154,29 @@ final class WorkspaceModel: Identifiable {
                 select(last)
             }
             requestUsers(Set(conversations.compactMap(\.userID)))
+            await loadGroupMembers()
         } catch {
             errorMessage = "Couldn't load conversations (\(error))."
         }
+    }
+
+    private func loadGroupMembers() async {
+        let groups = conversations.filter { $0.kind == .groupDirectMessage }.map(\.id)
+        let client = client
+        await withTaskGroup(of: (String, [String])?.self) { group in
+            var pending = groups[...]
+            for _ in 0..<min(6, pending.count) {
+                let id = pending.removeFirst()
+                group.addTask { (try? await client.members(of: id)).map { (id, $0) } }
+            }
+            for await result in group {
+                if let (id, members) = result { groupMembers[id] = members }
+                if let id = pending.popFirst() {
+                    group.addTask { (try? await client.members(of: id)).map { (id, $0) } }
+                }
+            }
+        }
+        requestUsers(Set(groupMembers.values.joined()))
     }
 
     private func loadCustomEmoji() async {

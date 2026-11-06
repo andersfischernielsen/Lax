@@ -136,7 +136,8 @@ struct MessageRow<Footer: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
-        .padding(.top, showsHeader ? 10 : 2)
+        .padding(.vertical, 6)
+        .padding(.top, showsHeader ? 6 : 0)
     }
 }
 

@@ -6,6 +6,9 @@ struct ConversationView: View {
     let workspace: WorkspaceModel
     let conversation: SlackConversation
     @State private var showsPinned = false
+    /// Scrolled to the newest message once; older pages load only after that.
+    @State private var isPositioned = false
+    @State private var isAtBottom = true
     @Environment(WindowModel.self) private var window
 
     var body: some View {
@@ -18,28 +21,44 @@ struct ConversationView: View {
         }
 
         VStack(spacing: 0) {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    if timeline?.hasOlder ?? true {
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            // Visible at the top: load the next page, and again each time one lands.
-                            .task(id: timeline?.oldestTS) { workspace.loadOlder(in: conversation.id) }
-                    }
-                    ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
-                        let isFirstUnread = message.ts == firstUnread
-                        let isNewDay = DayLabel.startsNewDay(message.date, after: index > 0 ? messages[index - 1].date : nil)
-                        if isNewDay { DayDivider(date: message.date) }
-                        if isFirstUnread { NewMessagesDivider() }
-                        MessageItem(workspace: workspace, channel: conversation.id, message: message,
-                                    formatter: formatter,
-                                    showsHeader: isNewDay || isFirstUnread || MessageItem.showsHeader(messages, at: index))
-                    }
+            // A native list, like Mail's: the selected message's thread shows in the inspector.
+            ScrollViewReader { proxy in
+            List(selection: selectedMessage(messages)) {
+                if isPositioned, timeline?.hasOlder ?? true {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        // Visible at the top: load the next page, and again each time one lands.
+                        .task(id: timeline?.oldestTS) { workspace.loadOlder(in: conversation.id) }
+                        .selectionDisabled()
+                        .listRowSeparator(.hidden)
                 }
-                .padding(.vertical, 8)
+                ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
+                    let isFirstUnread = message.ts == firstUnread
+                    let isNewDay = DayLabel.startsNewDay(message.date, after: index > 0 ? messages[index - 1].date : nil)
+                    if isNewDay { DayDivider(date: message.date).messageListRow(selectable: false) }
+                    if isFirstUnread { NewMessagesDivider().messageListRow(selectable: false) }
+                    MessageItem(workspace: workspace, channel: conversation.id, message: message,
+                                formatter: formatter,
+                                showsHeader: isNewDay || isFirstUnread || MessageItem.showsHeader(messages, at: index))
+                        .messageListRow(selectable: true)
+                        .tag(message.ts)
+                        .id(message.ts)
+                }
             }
-            .defaultScrollAnchor(.bottom)
+            .listStyle(.plain)
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height - 60
+            } action: { _, atBottom in
+                isAtBottom = atBottom
+            }
+            // Follow new messages while at the bottom, as chat apps do.
+            .onChange(of: messages.last?.ts, initial: true) { _, newest in
+                guard let newest, isAtBottom || !isPositioned else { return }
+                proxy.scrollTo(newest, anchor: .bottom)
+                Task { isPositioned = true }
+            }
+            }
 
             ComposerView(placeholder: "Message \(workspace.displayName(of: conversation))", draft: draft,
                          typing: typingSummary) {
@@ -89,6 +108,21 @@ struct ConversationView: View {
                 })
     }
 
+    /// The message whose thread is in the inspector. Selecting one with replies opens the
+    /// inspector; selecting any other updates it if open, so a thread can be started there.
+    private func selectedMessage(_ messages: [SlackMessage]) -> Binding<String?> {
+        Binding(get: { window.thread?.channel == conversation.id ? window.thread?.ts : nil },
+                set: { ts in
+                    guard let message = messages.first(where: { $0.ts == ts }) else { return window.thread = nil }
+                    let root = message.threadTS ?? message.ts
+                    if message.replyCount > 0 {
+                        window.openThread(root, in: conversation.id)
+                    } else {
+                        window.thread = ThreadRef(channel: conversation.id, ts: root)
+                    }
+                })
+    }
+
     private var editText: Binding<String> {
         Binding(get: { window.editing?.text ?? "" }, set: { window.editing?.text = $0 })
     }
@@ -125,3 +159,11 @@ private struct NewMessagesDivider: View {
     }
 }
 
+private extension View {
+    /// Edge to edge, without separators; rows pad themselves.
+    func messageListRow(selectable: Bool) -> some View {
+        listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 4, trailing: 0))
+            .listRowSeparator(.hidden)
+            .selectionDisabled(!selectable)
+    }
+}

@@ -57,6 +57,7 @@
 ## Bugs
 
 - [ ] Shift-Return and Option-Return don't start a new line in the composer
+- [ ] Icons flicker when the window is closed (Lax still running) and reopened from the Dock
 
 ## Apple quality
 

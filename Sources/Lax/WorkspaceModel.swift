@@ -30,6 +30,9 @@ final class WorkspaceModel: Identifiable {
     var drafts: [String: String] = [:]
     /// Pinned messages per conversation, loaded when asked for.
     private(set) var pinned: [String: [SlackMessage]] = [:]
+    var searchQuery = ""
+    /// Results of the last search; nil when not searching.
+    private(set) var searchResults: [SearchResult]?
     /// A message being edited, shown in a sheet.
     var editing: MessageEdit?
     var errorMessage: String?
@@ -297,6 +300,36 @@ final class WorkspaceModel: Identifiable {
             } catch {
                 errorMessage = "Couldn't load pinned messages (\(error))."
             }
+        }
+    }
+
+    // MARK: - Search
+
+    func search() {
+        let query = searchQuery.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return clearSearch() }
+        Task {
+            do {
+                let results = try await client.searchMessages(query)
+                searchResults = results
+                requestNames(for: results.map(\.message))
+            } catch {
+                errorMessage = "Search failed (\(error))."
+            }
+        }
+    }
+
+    func clearSearch() {
+        searchResults = nil
+    }
+
+    /// Opens the result's conversation, and its thread if it's a reply.
+    func open(_ result: SearchResult) {
+        clearSearch()
+        searchQuery = ""
+        select(result.channelID)
+        if let thread = result.message.threadTS, thread != result.message.ts {
+            openThread(thread, in: result.channelID)
         }
     }
 

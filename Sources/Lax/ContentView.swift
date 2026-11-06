@@ -10,7 +10,9 @@ struct ContentView: View {
                 .navigationSplitViewColumnWidth(min: 200, ideal: 250)
         } detail: {
             if let workspace = model.currentWorkspace {
-                if let conversation = workspace.selectedConversation {
+                if let results = workspace.searchResults {
+                    SearchResultsView(workspace: workspace, results: results)
+                } else if let conversation = workspace.selectedConversation {
                     ConversationView(workspace: workspace, conversation: conversation)
                         .id(conversation.id)
                 } else {
@@ -27,6 +29,8 @@ struct ContentView: View {
                 }
             }
         }
+        .searchable(text: searchQuery, placement: .toolbar, prompt: "Search messages")
+        .onSubmit(of: .search) { model.currentWorkspace?.search() }
         .sheet(item: $model.signIn) { controller in
             SignInView(controller: controller, cancel: model.cancelSignIn)
         }
@@ -35,6 +39,14 @@ struct ContentView: View {
         } message: {
             Text(model.errorMessage ?? model.currentWorkspace?.errorMessage ?? "")
         }
+    }
+
+    private var searchQuery: Binding<String> {
+        Binding(get: { model.currentWorkspace?.searchQuery ?? "" },
+                set: { query in
+                    model.currentWorkspace?.searchQuery = query
+                    if query.isEmpty { model.currentWorkspace?.clearSearch() }
+                })
     }
 
     private var errorBinding: Binding<Bool> {

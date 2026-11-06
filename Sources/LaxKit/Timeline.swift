@@ -1,0 +1,53 @@
+import Foundation
+
+/// One conversation's top-level messages, oldest first. Thread replies stay out
+/// unless they were also sent to the channel.
+public struct Timeline: Equatable, Sendable {
+    public private(set) var messages: [SlackMessage] = []
+    /// Slack has older messages than the first one here.
+    public private(set) var hasOlder = true
+
+    public init() {}
+
+    /// Adds a page from `conversations.history` (newest first), older than what's here.
+    public mutating func addOlder(_ page: HistoryPage) {
+        for message in page.messages { upsert(message) }
+        hasOlder = page.hasMore
+    }
+
+    /// Adds or replaces a message, keeping order. Returns false if it doesn't belong here.
+    @discardableResult
+    public mutating func upsert(_ message: SlackMessage) -> Bool {
+        guard Self.belongsInChannel(message) else { return false }
+        if let index = messages.firstIndex(where: { $0.ts == message.ts }) {
+            messages[index] = message
+        } else {
+            let index = messages.firstIndex { Self.isOrdered(message.ts, before: $0.ts) } ?? messages.endIndex
+            messages.insert(message, at: index)
+        }
+        return true
+    }
+
+    /// Replaces an edited message; ignored if it isn't loaded.
+    public mutating func replace(_ message: SlackMessage) {
+        guard let index = messages.firstIndex(where: { $0.ts == message.ts }) else { return }
+        messages[index] = message
+    }
+
+    public mutating func remove(ts: String) {
+        messages.removeAll { $0.ts == ts }
+    }
+
+    /// The `latest` to ask for when loading older messages.
+    public var oldestTS: String? { messages.first?.ts }
+
+    static func belongsInChannel(_ message: SlackMessage) -> Bool {
+        guard let thread = message.threadTS, thread != message.ts else { return true }
+        return message.subtype == "thread_broadcast"
+    }
+
+    /// Timestamps are decimal strings, so compare them as numbers.
+    static func isOrdered(_ lhs: String, before rhs: String) -> Bool {
+        (Decimal(string: lhs) ?? 0) < (Decimal(string: rhs) ?? 0)
+    }
+}

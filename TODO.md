@@ -11,8 +11,8 @@
 | @role or @subteam mentions      | Planned  | Planned  |
 | Video calls and screen sharing  | Unlikely | Unlikely |
 
-- [ ] Animated emoji: custom emoji show, but GIFs only show their first frame
-- [ ] Animated images and videos
+- [x] Animated emoji: play in reactions and the picker (inline in text they stay still)
+- [x] Animated images and videos: GIFs play, videos play inline
 - [x] Unread message marker line
 - [x] "User is typing" indicators (Slack)
 - [x] Set own nickname (Slack): display name, from the workspace menu

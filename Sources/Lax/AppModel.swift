@@ -18,7 +18,9 @@ final class AppModel {
     func load() {
         do {
             accounts = try store.loadAll()
+            Log.workspace.info("loaded \(self.accounts.count) account(s) from the Keychain")
         } catch {
+            Log.workspace.error("Keychain read failed: \(Log.describe(error), privacy: .public)")
             errorMessage = "Couldn't read saved accounts from the Keychain (\(error))."
         }
         syncWorkspaces()
@@ -52,6 +54,7 @@ final class AppModel {
                 workspaces.removeValue(forKey: account.id)?.stop()
             }
         } catch {
+            Log.workspace.error("Keychain save failed: \(Log.describe(error), privacy: .public)")
             errorMessage = "Couldn't save the account to the Keychain (\(error))."
         }
         load()

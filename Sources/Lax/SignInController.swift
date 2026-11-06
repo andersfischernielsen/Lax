@@ -32,9 +32,13 @@ final class SignInController: NSObject, Identifiable, WKNavigationDelegate, WKUI
         webView.navigationDelegate = self
         webView.uiDelegate = self
         // The web client switches pages without full loads, so watch the URL itself.
-        urlObservation = webView.observe(\.url) { [weak self] _, _ in
-            MainActor.assumeIsolated { self?.extractIfSignedIn() }
+        urlObservation = webView.observe(\.url) { [weak self] webView, _ in
+            MainActor.assumeIsolated {
+                Log.signIn.info("page: \(Log.redacted(webView.url), privacy: .public)")
+                self?.extractIfSignedIn()
+            }
         }
+        Log.signIn.info("sign-in started")
         webView.load(URLRequest(url: URL(string: "https://slack.com/signin")!))
     }
 
@@ -47,15 +51,28 @@ final class SignInController: NSObject, Identifiable, WKNavigationDelegate, WKUI
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction) async -> WKNavigationActionPolicy {
         // Slack offers to open its desktop app via slack:// links; stay in the web view.
         guard let scheme = action.request.url?.scheme else { return .allow }
-        return scheme == "https" || scheme == "http" || scheme == "about" ? .allow : .cancel
+        guard scheme == "https" || scheme == "http" || scheme == "about" else {
+            Log.signIn.notice("blocked link: \(scheme, privacy: .public)://")
+            return .cancel
+        }
+        return .allow
     }
 
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                  for action: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
         // Slack opens some steps, such as 2FA, in a new tab. Web views drop those
         // unless handled, so load them here instead.
+        Log.signIn.info("new-window request: \(Log.redacted(action.request.url), privacy: .public)")
         webView.load(action.request)
         return nil
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        Log.signIn.error("load failed: \(Log.describe(error), privacy: .public)")
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        Log.signIn.error("load failed before start: \(Log.describe(error), privacy: .public)")
     }
 
     func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String,
@@ -81,24 +98,37 @@ final class SignInController: NSObject, Identifiable, WKNavigationDelegate, WKUI
 
     private func extract() async {
         phase = .verifying
+        Log.signIn.info("reached the web client; reading the session")
         // The web client writes its config shortly after the page appears.
-        for _ in 0..<15 {
-            let found = await currentCredentials()
+        for attempt in 1...15 {
+            let found = await currentCredentials(attempt: attempt)
             if !found.isEmpty {
                 await verify(found)
                 return
             }
             try? await Task.sleep(for: .seconds(1))
         }
+        Log.signIn.error("gave up reading the session")
         phase = .failed("Signed in, but Lax couldn't find the Slack session.")
     }
 
-    private func currentCredentials() async -> [SlackCredentials] {
-        guard let config = try? await webView.evaluateJavaScript(SlackWebSession.localConfigScript) as? String
-        else { return [] }
+    private func currentCredentials(attempt: Int) async -> [SlackCredentials] {
+        let config: String?
+        do {
+            config = try await webView.evaluateJavaScript(SlackWebSession.localConfigScript) as? String
+        } catch {
+            Log.signIn.error("attempt \(attempt): reading localStorage failed: \(Log.describe(error), privacy: .public)")
+            return []
+        }
         let cookies = await webView.configuration.websiteDataStore.httpCookieStore.allCookies()
-        return SlackWebSession.credentials(localConfig: config, cookies: cookies)
-            .filter { !$0.cookies.isEmpty }
+        let found = SlackWebSession.credentials(localConfig: config ?? "", cookies: cookies)
+        let cookieNames = cookies.map { "\($0.name)@\($0.domain)" }.sorted().joined(separator: " ")
+        Log.signIn.info("""
+            attempt \(attempt): config \(config == nil ? "missing" : "\(config!.count) chars", privacy: .public), \
+            \(found.count) workspace(s): \(found.map(\.workspaceDomain).joined(separator: ", "), privacy: .public); \
+            cookies: \(cookieNames, privacy: .public)
+            """)
+        return found.filter { !$0.cookies.isEmpty }
     }
 
     private func verify(_ found: [SlackCredentials]) async {
@@ -111,6 +141,7 @@ final class SignInController: NSObject, Identifiable, WKNavigationDelegate, WKUI
                 lastError = error
             }
         }
+        Log.signIn.info("verified \(accounts.count) of \(found.count) workspace(s)")
         if accounts.isEmpty {
             phase = .failed("Slack rejected the session: \(lastError.map(String.init(describing:)) ?? "unknown error")")
         } else {

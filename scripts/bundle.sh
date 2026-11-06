@@ -19,6 +19,13 @@ cp Support/Info.plist "$app/Contents/Info.plist"
 xcrun actool Support/AppIcon.icon --compile "$app/Contents/Resources" --platform macosx \
     --minimum-deployment-target 27.0 --app-icon AppIcon \
     --output-partial-info-plist build/AppIcon-partial.plist > /dev/null
-codesign --force --sign - "$app"
+# A stable local certificate when there is one: the Keychain then recognises every build as
+# the same app, instead of asking for access again after each ad-hoc-signed rebuild.
+identity="Lax Local Code Signing"
+if security find-certificate -c "$identity" > /dev/null 2>&1; then
+    codesign --force --sign "$identity" "$app"
+else
+    codesign --force --sign - "$app"
+fi
 
 echo "Built $app"

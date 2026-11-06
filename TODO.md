@@ -34,7 +34,7 @@
 - [x] Custom emoji and `:shortcodes:`
 - [x] Group DM names
 - [x] Search: results open the conversation, scrolled to the message (and its thread)
-- [ ] Slash commands and bot buttons
+- [x] Slash commands and bot buttons (Block Kit buttons; menus and modals not yet)
 - [x] Mark as unread: from the message menu (moves the read position back) and the sidebar
 - [x] App icon
 - [x] Mention autocomplete (@person, #channel) in the composer

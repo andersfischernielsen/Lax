@@ -162,8 +162,7 @@ private struct FollowedThreadRow: View {
                 }
             }
             Text(workspace.authorName(of: thread.root)).fontWeight(isUnread ? .semibold : .regular)
-            // One flowing preview: line breaks would leave blank lines in two lines of space.
-            Text(workspace.plainText(of: thread.root).split(whereSeparator: \.isNewline).joined(separator: " "))
+            Text(workspace.previewText(of: thread.root))
                 .lineLimit(2)
                 .foregroundStyle(.secondary)
         }

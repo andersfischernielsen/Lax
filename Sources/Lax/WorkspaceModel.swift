@@ -499,6 +499,17 @@ final class WorkspaceModel: Identifiable {
         textFormatter().plain(message.markup)
     }
 
+    /// One line about the message for lists: its text, or for bots that only send
+    /// attachments, the first attachment's pretext, title or text.
+    func previewText(of message: SlackMessage) -> String {
+        let text = plainText(of: message)
+        let preview = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? message.attachments.lazy.compactMap { $0.pretext ?? $0.title ?? $0.body }.first
+                .map { textFormatter().plain($0) } ?? ""
+            : text
+        return preview.split(whereSeparator: \.isNewline).joined(separator: " ")
+    }
+
     func copyText(of message: SlackMessage) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(plainText(of: message), forType: .string)

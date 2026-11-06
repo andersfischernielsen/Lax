@@ -91,7 +91,8 @@ struct ConversationView: View {
             }
             // Open at the "New" line when there is one, as Slack does, else at the newest message.
             .onChange(of: timeline != nil && workspace.readPositionKnown.contains(conversation.id), initial: true) { _, ready in
-                guard ready, !isPositioned else { return }
+                // A search result being revealed positions the list itself.
+                guard ready, !isPositioned, window.reveal?.channel != conversation.id else { return }
                 // The last message already read at the top, so the "New" line and the first
                 // unread message follow right below it.
                 let target = firstUnread.map { ts -> (String, UnitPoint) in
@@ -113,6 +114,19 @@ struct ConversationView: View {
                         workspace.saw(newest, in: conversation.id)
                     }
                 }
+            }
+            // A search result: load back to it, then scroll to it and select it.
+            .task(id: window.reveal) {
+                guard let reveal = window.reveal, reveal.channel == conversation.id else { return }
+                await workspace.loadThrough(reveal.ts, in: conversation.id)
+                for delay in [0, 50, 150, 300] {
+                    try? await Task.sleep(for: .milliseconds(delay))
+                    proxy.scrollTo(reveal.ts, anchor: .center)
+                }
+                // As if clicked: selected, with its thread in the inspector.
+                window.openThread(reveal.ts, in: conversation.id)
+                window.reveal = nil
+                isPositioned = true
             }
             // Follow new messages while at the bottom, as chat apps do.
             .onChange(of: messages.last?.ts) { _, newest in

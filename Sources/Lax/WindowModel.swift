@@ -37,6 +37,8 @@ final class WindowModel {
     /// The thread in the inspector, which is always shown beside conversations.
     var thread: ThreadRef?
     var showsQuickSwitcher = false
+    /// A message to scroll to and select once its conversation shows, from search.
+    var reveal: ThreadRef?
     /// `ts` of the message highlighted in the conversation.
     var selectedMessage: String?
     var searchQuery = ""
@@ -119,8 +121,10 @@ final class WindowModel {
         searchResults = nil
         searchQuery = ""
         if let conversation { show(conversation) } else { select(result.channelID) }
-        if let thread = result.message.threadTS, thread != result.message.ts {
-            openThread(thread, in: result.channelID)
-        }
+        // A reply shows in its thread; the conversation scrolls to the thread's parent.
+        let isReply = result.message.threadTS.map { $0 != result.message.ts } ?? false
+        let parent = isReply ? result.message.threadTS! : result.message.ts
+        reveal = ThreadRef(channel: result.channelID, ts: parent)
+        if isReply { openThread(parent, in: result.channelID) }
     }
 }

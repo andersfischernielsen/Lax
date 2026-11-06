@@ -265,20 +265,37 @@ final class WorkspaceModel: Identifiable {
     // MARK: - Loading
 
     func loadOlder(in channel: String) {
+        Task { await fetchOlder(in: channel) }
+    }
+
+    private func fetchOlder(in channel: String) async {
         guard !loadingHistory.contains(channel) else { return }
         loadingHistory.insert(channel)
-        Task {
-            defer { loadingHistory.remove(channel) }
-            do {
-                let page = try await client.history(channel: channel, before: timelines[channel]?.oldestTS)
-                var timeline = timelines[channel] ?? Timeline()
-                timeline.addOlder(page)
-                timelines[channel] = timeline
-                requestNames(for: page.messages)
-                markReadIfVisible(channel)
-            } catch {
-                problem = Problem("Couldn't Load Messages", error)
+        defer { loadingHistory.remove(channel) }
+        do {
+            let page = try await client.history(channel: channel, before: timelines[channel]?.oldestTS)
+            var timeline = timelines[channel] ?? Timeline()
+            timeline.addOlder(page)
+            timelines[channel] = timeline
+            requestNames(for: page.messages)
+            markReadIfVisible(channel)
+        } catch is CancellationError {
+        } catch {
+            problem = Problem("Couldn't Load Messages", error)
+        }
+    }
+
+    /// Loads older pages until the conversation reaches back to `ts`, for jumping to a
+    /// message; stops after `maxPages` so a very old message can't load the whole history.
+    func loadThrough(_ ts: String, in channel: String, maxPages: Int = 20) async {
+        for _ in 0..<maxPages {
+            // A page already on its way (the first, as the conversation opens) comes first.
+            while loadingHistory.contains(channel) { try? await Task.sleep(for: .milliseconds(50)) }
+            if let timeline = timelines[channel],
+               !timeline.hasOlder || timeline.oldestTS.map({ !SlackTimestamp.isBefore(ts, $0) }) ?? false {
+                return
             }
+            await fetchOlder(in: channel)
         }
     }
 

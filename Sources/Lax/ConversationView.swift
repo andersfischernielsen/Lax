@@ -49,9 +49,10 @@ struct ConversationView: View {
                         .messageListRow(selectable: true)
                         .tag(message.ts)
                         .id(message.ts)
-                        // Read once at least half of it has been on screen, after the list has
-                        // settled where it opens; rows passed on the way there don't count.
-                        .onScrollVisibilityChange(threshold: 0.5) { visible in
+                        // Read once a quarter of it has been on screen (so tall messages count
+                        // too), after the list has settled where it opens; rows passed on the
+                        // way there don't count.
+                        .onScrollVisibilityChange(threshold: 0.25) { visible in
                             if visible { visibleRows.ids.insert(message.ts) } else { visibleRows.ids.remove(message.ts) }
                             if visible, isPositioned { workspace.saw(message.ts, in: conversation.id) }
                         }

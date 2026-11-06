@@ -126,9 +126,7 @@ final class WorkspaceModel: Identifiable {
 
     /// A message scrolled into view.
     func saw(_ ts: String, in channel: String) {
-        let seen = SlackTimestamp.later(seenTS[channel], ts)
-        if seen != seenTS[channel] { Log.workspace.debug("read position on screen moved forward") }
-        seenTS[channel] = seen
+        seenTS[channel] = SlackTimestamp.later(seenTS[channel], ts)
         // Caught up: clear the badge at once; Slack hears about it after a pause.
         if seenTS[channel] == timelines[channel]?.newestTS, NSApplication.shared.isActive { unread.read(channel) }
         markReadIfVisible(channel)
@@ -150,7 +148,7 @@ final class WorkspaceModel: Identifiable {
         for channel in channel.map({ [$0] }) ?? Array(visible.keys) { markRead(channel) }
     }
 
-    /// Waits for scrolling to settle, so passing many messages sends one update.
+    /// Waits briefly for scrolling to settle, so passing many messages sends one update.
     private func markRead(_ channel: String) {
         guard visible[channel] != nil,
               readPositionKnown.contains(channel),
@@ -159,12 +157,11 @@ final class WorkspaceModel: Identifiable {
               SlackTimestamp.isBefore(markedReadTS[channel] ?? "0", seen) else { return }
         markReadTasks[channel]?.cancel()
         markReadTasks[channel] = Task {
-            try? await Task.sleep(for: .seconds(1))
+            try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled, let position = seenTS[channel],
                   SlackTimestamp.isBefore(markedReadTS[channel] ?? "0", position) else { return }
             markedReadTS[channel] = position
-            // The "New" line moves down to what's still unseen, and goes once that's nothing.
-            unreadMarkers[channel] = position
+            // The "New" line stays for the rest of the visit, as in Slack; it's gone next time.
             try? await client.markRead(channel: channel, ts: position)
         }
     }

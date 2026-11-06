@@ -188,13 +188,13 @@ private struct ConversationRow: View {
         let isHighlighted = counts.hasUnreads && !isMuted
         Label {
             HStack(spacing: 4) {
-                Text(name.trimmingPrefix("#")).lineLimit(1)
+                // On the text itself: the sidebar's own font overrides a weight set on the label.
+                Text(name.trimmingPrefix("#")).lineLimit(1).fontWeight(isHighlighted ? .semibold : .regular)
                 if isMuted { Image(systemName: "bell.slash").font(.caption2).accessibilityLabel("Muted") }
             }
         } icon: {
             Image(systemName: conversation.kind.systemImage)
         }
-        .fontWeight(isHighlighted ? .semibold : .regular)
         .foregroundStyle(isHighlighted ? AnyShapeStyle(.primary)
                          : isMuted ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
         .badge(counts.mentions)

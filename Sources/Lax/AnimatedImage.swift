@@ -18,6 +18,12 @@ struct AnimatedImage: NSViewRepresentable {
     func updateNSView(_ view: NSImageView, context: Context) {
         if view.image !== image { view.image = image }
     }
+
+    /// Whatever SwiftUI offers: callers give an exact frame. Left to itself an image view
+    /// reports the image's own size, or nothing, and the emoji vanishes or overflows.
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSImageView, context: Context) -> CGSize? {
+        CGSize(width: proposal.width ?? image.size.width, height: proposal.height ?? image.size.height)
+    }
 }
 
 extension NSImage {
@@ -33,6 +39,8 @@ struct EmojiImage: View {
     let height: CGFloat
 
     var body: some View {
+        // An exact size, keeping the image's proportions.
+        let width = height * image.size.width / max(image.size.height, 1)
         Group {
             if image.isAnimated {
                 AnimatedImage(image: image)
@@ -40,7 +48,6 @@ struct EmojiImage: View {
                 Image(nsImage: image).resizable()
             }
         }
-        .aspectRatio(image.size.width / max(image.size.height, 1), contentMode: .fit)
-        .frame(height: height)
+        .frame(width: width, height: height)
     }
 }

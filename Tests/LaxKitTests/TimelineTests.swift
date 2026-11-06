@@ -75,3 +75,15 @@ private func message(_ ts: String, _ text: String = "", thread: String? = nil, s
     #expect(TypingTracker.summary(["Jane", "Bob"]) == "Jane and Bob are typing…")
     #expect(TypingTracker.summary(["A", "B", "C", "D"]) == "Several people are typing…")
 }
+
+@Test func threadTimelinesHoldParentAndReplies() {
+    let thread = Timeline(thread: "1.0", messages: [
+        message("1.0", thread: "1.0"), message("2.0", thread: "1.0"), message("3.0", thread: "9.0"), message("4.0"),
+    ])
+    #expect(thread.messages.map(\.ts) == ["1.0", "2.0"])
+    #expect(!thread.hasOlder)
+    var live = thread
+    let accepted = live.upsert(message("5.0", thread: "1.0"))
+    #expect(accepted)
+    #expect(live.messages.map(\.ts) == ["1.0", "2.0", "5.0"])
+}

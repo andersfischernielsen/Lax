@@ -110,6 +110,17 @@ struct EndpointTests {
         #expect(unread["D1"].mentions == 3)
     }
 
+    @Test func repliesFollowCursors() async throws {
+        StubURLProtocol.reset(["conversations.replies": [
+            #"{"ok":true,"messages":[{"ts":"1.0","thread_ts":"1.0","text":"root"}],"response_metadata":{"next_cursor":"n"}}"#,
+            #"{"ok":true,"messages":[{"ts":"2.0","thread_ts":"1.0","text":"reply"}]}"#,
+        ]])
+        let messages = try await client.replies(channel: "C1", threadTS: "1.0")
+        #expect(messages.map(\.text) == ["root", "reply"])
+        #expect(StubURLProtocol.requests[1].formFields["cursor"] == "n")
+        #expect(StubURLProtocol.requests[0].formFields["ts"] == "1.0")
+    }
+
     @Test func realTimeURLComesFromRTMConnect() async throws {
         StubURLProtocol.reset(["rtm.connect": [#"{"ok":true,"url":"wss://wss-primary.slack.com/websocket/abc"}"#]])
         #expect(try await client.realTimeURL().absoluteString == "wss://wss-primary.slack.com/websocket/abc")

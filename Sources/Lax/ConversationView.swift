@@ -38,7 +38,7 @@ struct ConversationView: View {
                             message: message,
                             author: workspace.authorName(of: message),
                             avatarURL: author?.avatarURL,
-                            text: formatter.attributed(message.text),
+                            text: MessageStyle.styled(formatter.attributed(message.text)),
                             showsHeader: isFirstUnread || showsHeader(messages, at: index),
                             isSystem: message.subtype.map(Self.systemSubtypes.contains) ?? false
                         )

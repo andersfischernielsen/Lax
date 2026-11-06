@@ -79,8 +79,7 @@ public struct Timeline: Equatable, Sendable {
         return message.ts == threadTS || message.threadTS == threadTS
     }
 
-    /// Timestamps are decimal strings, so compare them as numbers.
     static func isOrdered(_ lhs: String, before rhs: String) -> Bool {
-        (Decimal(string: lhs) ?? 0) < (Decimal(string: rhs) ?? 0)
+        SlackTimestamp.isBefore(lhs, rhs)
     }
 }

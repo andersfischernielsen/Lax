@@ -11,3 +11,11 @@ import Testing
     #expect(SlackTimestamp.justBefore("1.5") == nil)
     #expect(SlackTimestamp.justBefore("0.000000") == nil)
 }
+
+@Test func comparesTimestampsAsNumbers() {
+    #expect(SlackTimestamp.isBefore("999.000000", "1000.000000"))
+    #expect(!SlackTimestamp.isBefore("2.0", "2.0"))
+    #expect(SlackTimestamp.later(nil, "5.0") == "5.0")
+    #expect(SlackTimestamp.later("9.0", "10.0") == "10.0")
+    #expect(SlackTimestamp.later("10.0", "9.0") == "10.0")
+}

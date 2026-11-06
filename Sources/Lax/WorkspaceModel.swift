@@ -131,6 +131,30 @@ final class WorkspaceModel: Identifiable {
         Task { try? await client.markRead(channel: channel, ts: newest) }
     }
 
+    // MARK: - Sidebar
+
+    struct SidebarSection {
+        let title: String
+        let items: [(conversation: SlackConversation, name: String)]
+    }
+
+    /// Channels, then direct messages, each by name: the sidebar and its keyboard order.
+    var sidebarSections: [SidebarSection] {
+        [("Channels", [SlackConversation.Kind.channel, .privateChannel]),
+         ("Direct Messages", [.directMessage, .groupDirectMessage])].map { title, kinds in
+            SidebarSection(title: title, items: conversations
+                .filter { kinds.contains($0.kind) }
+                .map { (conversation: $0, name: displayName(of: $0)) }
+                .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending })
+        }
+    }
+
+    /// Worth opening: unread outside muted conversations, or a mention anywhere.
+    func isUnread(_ id: String) -> Bool {
+        let counts = unread[id]
+        return counts.mentions > 0 || (counts.hasUnreads && !muted.contains(id))
+    }
+
     // MARK: - Names
 
     func userName(_ id: String) -> String? {

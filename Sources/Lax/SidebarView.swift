@@ -59,23 +59,16 @@ private struct ConversationList: View {
 
     var body: some View {
         List(selection: Binding(get: { window.conversationID }, set: { window.select($0) })) {
-            section("Channels", kinds: [.channel, .privateChannel])
-            section("Direct Messages", kinds: [.directMessage, .groupDirectMessage])
+            ForEach(workspace.sidebarSections, id: \.title) { section in
+                Section(section.title) {
+                    ForEach(section.items, id: \.conversation.id) { item in
+                        ConversationRow(workspace: workspace, conversation: item.conversation, name: item.name)
+                    }
+                }
+            }
         }
         .overlay {
             if workspace.conversations.isEmpty { ProgressView() }
-        }
-    }
-
-    private func section(_ title: String, kinds: Set<SlackConversation.Kind>) -> some View {
-        let items = workspace.conversations
-            .filter { kinds.contains($0.kind) }
-            .map { (conversation: $0, name: workspace.displayName(of: $0)) }
-            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-        return Section(title) {
-            ForEach(items, id: \.conversation.id) { item in
-                ConversationRow(workspace: workspace, conversation: item.conversation, name: item.name)
-            }
         }
     }
 }

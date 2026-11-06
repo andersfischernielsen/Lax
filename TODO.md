@@ -13,8 +13,20 @@
 
 - [ ] Animated emoji
 - [ ] Animated images and videos
-- [ ] Unread message marker line
-- [ ] "User is typing" indicators (Slack)
+- [x] Unread message marker line
+- [ ] "User is typing" indicators (Slack): showing others is done; sending our own isn't
 - [ ] Set own nickname (Slack)
-- [ ] @role (Discord) or @subteam (Slack) mentions
+- [ ] @role (Discord) or @subteam (Slack) mentions: shown in messages; no autocomplete when writing
 - [ ] Video calls and screen sharing (huddles) — last
+
+
+- [ ] Threads (reply counts show, but threads can't be opened)
+- [ ] Reactions
+- [ ] Images and file attachments
+- [ ] Edit and delete own messages
+- [ ] Unread badges in the sidebar
+- [ ] Notifications
+- [ ] Custom emoji and `:shortcodes:`
+- [ ] Search
+- [ ] Pinned messages
+- [ ] Slash commands and bot buttons

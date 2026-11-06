@@ -204,93 +204,72 @@ struct ComposerView<Status: View>: View {
     var accept: (Suggestion) -> Void = { _ in }
     @ViewBuilder var status: Status
     let send: () -> Void
-    @State private var selection: TextSelection?
+    /// The cursor, in characters into the draft.
+    @State private var cursor = 0
+    @State private var fieldHeight: CGFloat = 17
     @State private var highlighted = 0
     /// The word whose suggestions were dismissed with Esc.
     @State private var dismissed: Autocomplete.Token?
 
     var body: some View {
-        let token = Autocomplete.token(in: String(draft[..<cursor]))
+        let offset = min(cursor, draft.count)
+        let token = Autocomplete.token(in: String(draft.prefix(offset)))
         let suggestions = token.flatMap { $0 == dismissed ? nil : suggest($0) } ?? []
         VStack(alignment: .leading, spacing: 4) {
             status
             if !suggestions.isEmpty, let token {
                 SuggestionList(suggestions: suggestions, highlighted: highlighted) { take($0, for: token) }
             }
-            TextField(placeholder, text: $draft, selection: $selection, axis: .vertical)
-                .textFieldStyle(.plain)
-                .lineLimit(1...8)
-                .padding(10)
-                .background(RoundedRectangle(cornerRadius: 8).strokeBorder(.separator))
-                .onKeyPress(keys: [.return]) { press in
-                    if !press.modifiers.isDisjoint(with: [.shift, .option]) {
-                        insert("\n")
-                    } else if let token, suggestions.indices.contains(highlighted) {
-                        take(suggestions[highlighted], for: token)
-                    } else {
-                        send()
-                    }
-                    return .handled
+            MessageField(placeholder: placeholder, text: $draft, cursor: $cursor, height: $fieldHeight,
+                         identifier: identifier) { key in
+                handle(key, token: token, suggestions: suggestions)
+            }
+            .frame(height: fieldHeight)
+            .overlay(alignment: .topLeading) {
+                if draft.isEmpty {
+                    Text(placeholder).foregroundStyle(.placeholder).allowsHitTesting(false)
                 }
-                .onKeyPress(.tab) {
-                    guard let token, suggestions.indices.contains(highlighted) else { return .ignored }
-                    take(suggestions[highlighted], for: token)
-                    return .handled
-                }
-                .onKeyPress(.downArrow) {
-                    guard !suggestions.isEmpty else { return .ignored }
-                    highlighted = min(highlighted + 1, suggestions.count - 1)
-                    return .handled
-                }
-                .onKeyPress(.upArrow) {
-                    guard !suggestions.isEmpty else { return .ignored }
-                    highlighted = max(highlighted - 1, 0)
-                    return .handled
-                }
-                .onKeyPress(.escape) {
-                    guard !suggestions.isEmpty else { return .ignored }
-                    dismissed = token
-                    return .handled
-                }
-                .onChange(of: draft) { highlighted = 0 }
-                .accessibilityIdentifier(identifier)
+            }
+            .padding(10)
+            .background(RoundedRectangle(cornerRadius: 8).strokeBorder(.separator))
+            .onChange(of: draft) { highlighted = 0 }
         }
+        .onAppear { cursor = draft.count }
         .padding(.horizontal, 16)
         .padding(.bottom, 12)
     }
 
-    /// The selection as character offsets into the draft. The text field's selection can lag
-    /// behind or not match the draft string, so positions that don't fit it count as the end.
-    private var selectedOffsets: Range<Int> {
-        guard case .selection(let range) = selection?.indices,
-              let lower = String.Index(range.lowerBound, within: draft),
-              let upper = String.Index(range.upperBound, within: draft), lower <= upper else {
-            return draft.count..<draft.count
+    /// Return sends, unless a suggestion is showing; arrows, Tab and Esc work the suggestions.
+    private func handle(_ key: MessageField.Key, token: Autocomplete.Token?, suggestions: [Suggestion]) -> Bool {
+        let current = suggestions.indices.contains(highlighted) ? suggestions[highlighted] : nil
+        switch key {
+        case .send:
+            if let token, let current { take(current, for: token) } else { send() }
+            return true
+        case .tab:
+            guard let token, let current else { return false }
+            take(current, for: token)
+            return true
+        case .down:
+            guard !suggestions.isEmpty else { return false }
+            highlighted = min(highlighted + 1, suggestions.count - 1)
+            return true
+        case .up:
+            guard !suggestions.isEmpty else { return false }
+            highlighted = max(highlighted - 1, 0)
+            return true
+        case .escape:
+            guard !suggestions.isEmpty else { return false }
+            dismissed = token
+            return true
         }
-        let start = draft.distance(from: draft.startIndex, to: lower)
-        return start..<(start + draft.distance(from: lower, to: upper))
-    }
-
-    /// Where the cursor is.
-    private var cursor: String.Index {
-        draft.index(draft.startIndex, offsetBy: selectedOffsets.upperBound)
     }
 
     private func take(_ suggestion: Suggestion, for token: Autocomplete.Token) {
-        let end = selectedOffsets.upperBound
-        replace(token.start..<end, with: suggestion.insert + " ")
-        accept(suggestion)
-    }
-
-    /// Puts `text` in place of the selection, leaving the cursor after it.
-    private func insert(_ text: String) {
-        replace(selectedOffsets, with: text)
-    }
-
-    private func replace(_ range: Range<Int>, with text: String) {
-        let edited = TextEditing.replacing(range, in: draft, with: text)
+        let edited = TextEditing.replacing(token.start..<min(cursor, draft.count), in: draft, with: suggestion.insert + " ")
         draft = edited.text
-        selection = TextSelection(insertionPoint: edited.text.index(edited.text.startIndex, offsetBy: edited.cursor))
+        cursor = edited.cursor
+        accept(suggestion)
     }
 }
 

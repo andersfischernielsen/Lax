@@ -10,8 +10,9 @@ struct ConversationView: View {
     @State private var isAtBottom = true
     /// The top message when older ones were asked for; kept in place when they arrive.
     @State private var pageAnchor: String?
-    /// Messages at least half on screen right now.
-    @State private var visibleRows: Set<String> = []
+    /// Messages at least half on screen right now. A plain box, not observed: rows come and go
+    /// many times a second while scrolling, and that mustn't redraw the conversation.
+    @State private var visibleRows = VisibleRows()
     @Environment(WindowModel.self) private var window
 
     var body: some View {
@@ -42,7 +43,7 @@ struct ConversationView: View {
                     let isFirstUnread = message.ts == firstUnread
                     let isNewDay = DayLabel.startsNewDay(message.date, after: index > 0 ? messages[index - 1].date : nil)
                     if isNewDay { DayDivider(date: message.date).messageListRow(selectable: false) }
-                    if isFirstUnread { NewMessagesDivider().messageListRow(selectable: false).id(Self.newLineID) }
+                    if isFirstUnread { NewMessagesDivider().messageListRow(selectable: false) }
                     MessageItem(workspace: workspace, channel: conversation.id, message: message,
                                 showsHeader: isNewDay || isFirstUnread || MessageItem.showsHeader(messages, at: index))
                         .messageListRow(selectable: true)
@@ -51,7 +52,7 @@ struct ConversationView: View {
                         // Read once at least half of it has been on screen, after the list has
                         // settled where it opens; rows passed on the way there don't count.
                         .onScrollVisibilityChange(threshold: 0.5) { visible in
-                            if visible { visibleRows.insert(message.ts) } else { visibleRows.remove(message.ts) }
+                            if visible { visibleRows.ids.insert(message.ts) } else { visibleRows.ids.remove(message.ts) }
                             if visible, isPositioned { workspace.saw(message.ts, in: conversation.id) }
                         }
                 }
@@ -78,16 +79,22 @@ struct ConversationView: View {
             // Open at the "New" line when there is one, as Slack does, else at the newest message.
             .onChange(of: timeline != nil && workspace.readPositionKnown.contains(conversation.id), initial: true) { _, ready in
                 guard ready, !isPositioned else { return }
-                if firstUnread != nil {
-                    proxy.scrollTo(Self.newLineID, anchor: .top)
-                } else if let newest = messages.last?.ts {
-                    proxy.scrollTo(newest, anchor: .bottom)
-                }
+                // The last message already read at the top, so the "New" line and the first
+                // unread message follow right below it.
+                let target = firstUnread.map { ts -> (String, UnitPoint) in
+                    let index = messages.firstIndex { $0.ts == ts } ?? 0
+                    return (messages[max(index - 1, 0)].ts, .top)
+                } ?? messages.last.map { ($0.ts, UnitPoint.bottom) }
                 Task {
+                    // Rows for a page that just arrived exist only after the next layout pass,
+                    // so scroll once now and again once they're there.
+                    if let (id, anchor) = target { proxy.scrollTo(id, anchor: anchor) }
+                    try? await Task.sleep(for: .milliseconds(50))
+                    if let (id, anchor) = target { proxy.scrollTo(id, anchor: anchor) }
                     // Let the scroll land before counting what's on screen.
-                    try? await Task.sleep(for: .milliseconds(300))
+                    try? await Task.sleep(for: .milliseconds(250))
                     isPositioned = true
-                    if let newest = visibleRows.max(by: SlackTimestamp.isBefore) {
+                    if let newest = visibleRows.ids.max(by: SlackTimestamp.isBefore) {
                         workspace.saw(newest, in: conversation.id)
                     }
                 }
@@ -152,8 +159,6 @@ struct ConversationView: View {
                 })
     }
 
-    private static let newLineID = "new-messages-line"
-
     private var editText: Binding<String> {
         Binding(get: { window.editing?.text ?? "" }, set: { window.editing?.text = $0 })
     }
@@ -195,4 +200,9 @@ extension View {
             .listRowSeparator(.hidden)
             .selectionDisabled(!selectable)
     }
+}
+
+/// Reference storage a view can change without redrawing.
+final class VisibleRows {
+    var ids: Set<String> = []
 }

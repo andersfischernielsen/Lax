@@ -11,6 +11,7 @@ final class WorkspaceModel: Identifiable {
     private(set) var userGroupHandles: [String: String] = [:]
     private(set) var timelines: [String: Timeline] = [:]
     private(set) var typing = TypingTracker()
+    private(set) var unread = UnreadState()
     private(set) var status: RealTimeUpdate.Status = .connecting
     private(set) var loadingHistory: Set<String> = []
     private(set) var selectedConversationID: SlackConversation.ID?
@@ -43,6 +44,7 @@ final class WorkspaceModel: Identifiable {
         tasks = [
             Task { await loadConversations() },
             Task { await loadUserGroups() },
+            Task { await loadUnreadCounts() },
             Task { await listen() },
         ]
     }
@@ -56,6 +58,7 @@ final class WorkspaceModel: Identifiable {
         selectedConversationID = conversationID
         UserDefaults.standard.set(conversationID, forKey: lastConversationKey)
         guard let channel = conversationID else { return }
+        unread.read(channel)
         if timelines[channel] == nil { loadOlder(in: channel) }
 
         // Read the old position before marking anything read, or the marker would vanish.
@@ -136,6 +139,10 @@ final class WorkspaceModel: Identifiable {
         }
     }
 
+    private func loadUnreadCounts() async {
+        if let counts = try? await client.unreadCounts() { unread = counts }
+    }
+
     private func loadUserGroups() async {
         // Not every workspace allows listing groups; mentions then fall back to "@group".
         userGroupHandles = (try? await client.userGroupHandles()) ?? [:]
@@ -192,8 +199,14 @@ final class WorkspaceModel: Identifiable {
             // Unloaded conversations fetch fresh history when opened.
             timelines[channel]?.upsert(message)
             if let user = message.userID { typing.clear(userID: user, in: channel) }
+            if let conversation = conversations.first(where: { $0.id == channel }) {
+                let isOpen = channel == selectedConversationID && NSApplication.shared.isActive
+                unread.received(message, in: conversation, ownUserID: account.userID, isOpen: isOpen)
+            }
             requestNames(for: [message])
             markReadIfVisible(channel)
+        case .marked(let channel, let unreadCount, let mentionCount):
+            unread.marked(channel, unreadCount: unreadCount, mentionCount: mentionCount)
         case .messageChanged(let channel, let message):
             timelines[channel]?.replace(message)
             requestNames(for: [message])

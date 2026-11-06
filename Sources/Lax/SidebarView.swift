@@ -60,8 +60,12 @@ private struct ConversationList: View {
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         return Section(title) {
             ForEach(items, id: \.conversation.id) { item in
+                let counts = workspace.unread[item.conversation.id]
                 Label(item.name.trimmingPrefix("#"), systemImage: icon(for: item.conversation.kind))
                     .lineLimit(1)
+                    .fontWeight(counts.hasUnreads ? .semibold : .regular)
+                    .foregroundStyle(counts.hasUnreads ? .primary : .secondary)
+                    .badge(counts.mentions)
             }
         }
     }

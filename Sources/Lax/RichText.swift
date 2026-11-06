@@ -17,7 +17,7 @@ enum RichText {
             // Identical emoji in a row share one run (":x::x:"); draw one image each.
             let count = max(1, piece.characters.count / (name.count + 2))
             let images = (0..<count).reduce(Text("")) { row, _ in
-                Text("\(row)\(Text(Image(nsImage: image)).baselineOffset(-3))")
+                Text("\(row)\(Text(Image(nsImage: image)).baselineOffset(-3).customAttribute(EmojiTag(name: name)))")
             }
             return Text("\(result)\(images)")
         }

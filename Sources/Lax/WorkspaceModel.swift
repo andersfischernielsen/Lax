@@ -16,6 +16,8 @@ final class WorkspaceModel: Identifiable {
     private(set) var customEmoji: [String: SlackEmoji] = [:]
     /// Custom emoji images by name, sized for inline text.
     let emojiImages = KeyedStore<String, NSImage>()
+    /// Frames of animated custom emoji, for playing them inside message text.
+    let emojiAnimations = KeyedStore<String, EmojiAnimation>()
     let timelines = KeyedStore<String, Timeline>()
     /// Who is typing, per conversation.
     let typing = KeyedStore<String, TypingTracker>()
@@ -345,7 +347,11 @@ final class WorkspaceModel: Identifiable {
         requestedEmoji.formUnion(missing)
         for name in missing {
             guard case .image(let url) = customEmoji[name] else { continue }
-            Task { emojiImages[name] = await image(at: url).map { RichText.inline($0) } }
+            Task {
+                guard let image = await image(at: url) else { return }
+                emojiAnimations[name] = EmojiAnimation(image)
+                emojiImages[name] = RichText.inline(image)
+            }
         }
     }
 

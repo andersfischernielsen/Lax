@@ -34,6 +34,8 @@ struct MessageItem: View {
                 .map { AvatarView(url: $0, workspace: workspace) },
             // Emoji-only messages show their emoji large instead, as in Slack.
             text: jumbomoji == nil ? RichText.text(text, emojiImage: emojiImage) : nil,
+            animation: RichText.customEmojiNames(in: text).contains { workspace.emojiAnimations[$0] != nil }
+                ? { workspace.emojiAnimations[$0] } : nil,
             showsHeader: showsHeader,
             isSystem: message.subtype.map(Self.systemSubtypes.contains) ?? false
         ) {
@@ -128,6 +130,8 @@ struct MessageRow<Footer: View>: View {
     let avatar: AvatarView?
     /// The message body; nil when the footer shows it instead, as for jumbomoji.
     let text: Text?
+    /// Frames for the animated emoji in `text`; nil when it has none, so it's drawn once.
+    var animation: ((String) -> EmojiAnimation?)? = nil
     let showsHeader: Bool
     let isSystem: Bool
     @ViewBuilder let footer: Footer
@@ -157,7 +161,16 @@ struct MessageRow<Footer: View>: View {
                 // Not selectable: selectable text brings its own right-click menu, which would
                 // hide the message menu. ⌘C copies the selected message instead.
                 if let text {
-                    text.foregroundStyle(isSystem ? .secondary : .primary)
+                    if let animation {
+                        // Redrawn as frames change; the text is laid out once.
+                        TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
+                            text.textRenderer(AnimatedEmojiRenderer(
+                                time: context.date.timeIntervalSinceReferenceDate, animation: animation))
+                        }
+                        .foregroundStyle(isSystem ? .secondary : .primary)
+                    } else {
+                        text.foregroundStyle(isSystem ? .secondary : .primary)
+                    }
                 }
                 footer
             }

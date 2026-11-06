@@ -179,6 +179,37 @@ final class WorkspaceModel: Identifiable {
         return counts.mentions > 0 || (counts.hasUnreads && !muted.contains(id))
     }
 
+    /// Moves the read position to just before `ts`, so it and everything after it are unread.
+    func markUnread(from ts: String, in channel: String) {
+        guard let position = SlackTimestamp.justBefore(ts) else { return }
+        // Counts as already marked, so being on screen doesn't read it again at once;
+        // the next new message does.
+        markedReadTS[channel] = timelines[channel]?.newestTS ?? latestActivity[channel] ?? ts
+        unreadMarkers[channel] = position
+        unread.marked(channel, unreadCount: 1, mentionCount: unread[channel].mentions)
+        Task {
+            do {
+                try await client.markRead(channel: channel, ts: position)
+            } catch {
+                problem = Problem("Couldn't Mark as Unread", error)
+            }
+        }
+    }
+
+    /// Marks everything in a conversation read, from the sidebar.
+    func markAllRead(in channel: String) {
+        guard let newest = timelines[channel]?.newestTS ?? latestActivity[channel] else { return }
+        markedReadTS[channel] = newest
+        unread.read(channel)
+        Task {
+            do {
+                try await client.markRead(channel: channel, ts: newest)
+            } catch {
+                problem = Problem("Couldn't Mark as Read", error)
+            }
+        }
+    }
+
     // MARK: - Names
 
     func userName(_ id: String) -> String? {

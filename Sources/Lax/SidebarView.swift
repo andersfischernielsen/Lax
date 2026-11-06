@@ -201,6 +201,11 @@ private struct ConversationRow: View {
                          : isMuted ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
         .badge(counts.mentions)
         .contextMenu {
+            if counts.hasUnreads || counts.mentions > 0 {
+                Button("Mark as Read") { workspace.markAllRead(in: id) }
+            } else if let newest = workspace.latestActivity[id] {
+                Button("Mark as Unread") { workspace.markUnread(from: newest, in: id) }
+            }
             Button(isMuted ? "Unmute" : "Mute") { workspace.setMuted(!isMuted, id) }
         }
     }

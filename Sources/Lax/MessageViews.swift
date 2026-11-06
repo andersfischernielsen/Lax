@@ -80,6 +80,11 @@ struct MessageItem: View {
             Button("More…") { window.reactingTo = ReactionTarget(channel: channel, message: message) }
         }
         Divider()
+        // In the conversation only: thread replies have their own read state.
+        if showsThreadLink, message.isChannelLevel {
+            Button("Mark as Unread") { workspace.markUnread(from: message.ts, in: channel) }
+            Divider()
+        }
         Button("Copy Text") { workspace.copyText(of: message) }
         Button("Copy Link") { workspace.copyLink(to: message, in: channel) }
         if message.userID == workspace.account.userID {

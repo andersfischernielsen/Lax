@@ -44,6 +44,9 @@ struct ConversationView: View {
                             showsHeader: isNewDay || isFirstUnread || showsHeader(messages, at: index),
                             isSystem: message.subtype.map(Self.systemSubtypes.contains) ?? false
                         ) {
+                            if !message.files.isEmpty {
+                                FilesView(files: message.files, loadImage: workspace.image(at:))
+                            }
                             if !message.reactions.isEmpty {
                                 ReactionsView(reactions: message.reactions, ownUserID: workspace.account.userID,
                                               userName: workspace.userName) { name in

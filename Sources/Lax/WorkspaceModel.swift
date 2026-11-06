@@ -25,6 +25,7 @@ final class WorkspaceModel: Identifiable {
     @ObservationIgnored private var requestedUsers: Set<String> = []
     @ObservationIgnored private var readPositionKnown: Set<String> = []
     @ObservationIgnored private var markedReadTS: [String: String] = [:]
+    @ObservationIgnored private let images = NSCache<NSURL, NSImage>()
 
     nonisolated var id: SlackAccount.ID { account.id }
 
@@ -180,6 +181,14 @@ final class WorkspaceModel: Identifiable {
                 errorMessage = "Couldn't send the message (\(error))."
             }
         }
+    }
+
+    /// A Slack-hosted image, downloaded with the session cookie and kept in memory.
+    func image(at url: URL) async -> NSImage? {
+        if let cached = images.object(forKey: url as NSURL) { return cached }
+        guard let data = try? await client.download(url), let image = NSImage(data: data) else { return nil }
+        images.setObject(image, forKey: url as NSURL)
+        return image
     }
 
     /// Adds or removes the user's reaction, showing it at once and undoing it if Slack refuses.
